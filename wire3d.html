@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <title>Wire3D</title>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"/>
+    <style>
+
+body {
+  padding-left: 0.25em;
+  padding-right: 0.25em;
+  margin-bottom: 3.5em;
+  background-color: WhiteSmoke;
+  color: black;
+  font-family: serif;
+}
+
+:link {
+  text-decoration: none;
+  color: blue
+}
+
+:visited {
+  text-decoration: none;
+  color: blue
+}
+
+h1 {
+  font-family: sans-serif;
+}
+
+#divSplash {
+  font-style: italic;
+}
+
+#divMain {
+  display: none;
+}
+
+#cnvMain {
+ border: medium inset;
+ padding: 0;
+}
+
+#divSizer {
+  margin-top: 1em;
+}
+
+#divFile {
+  margin-top: 1em;
+}
+  
+    </style>
+    <!-- If JavaScript disabled, do not show the splash screen -->
+    <noscript>
+      <style>
+
+#divSplash {
+  display: None;
+}
+
+      </style>
+    </noscript>
+
+    <!-- Load JavaScript modules -->
+    <script src="wire3d.js"></script>
+    
+    <!-- Embedded script is for presentation tier functionality -->
+    <script>
+
+// Wrap everything in an anonymous function that we immediately invoke
+// after it is declared -- this prevents anything from being implicitly
+// added to global scope
+(function() {
+
+  /*
+   * Local data
+   * ==========
+   */
+  
+  /*
+   * Flag set to true when a file load is in progress.
+   */
+  var m_file_load = false;
+
+  /*
+   * Local functions
+   * ===============
+   */
+  
+  /*
+   * Report an error to console and throw an exception for a fault
+   * occurring within this module.
+   *
+   * Parameters:
+   *
+   *   func_name : string - the name of the function in this module
+   *
+   *   loc : number(int) - the location within the function
+   */
+  function fault(func_name, loc) {
+    
+    // If parameters not valid, set to unknown:0
+    if ((typeof func_name !== "string") || (typeof loc !== "number")) {
+      func_name = "unknown";
+      loc = 0;
+    }
+    loc = Math.floor(loc);
+    if (!isFinite(loc)) {
+      loc = 0;
+    }
+    
+    // Report error to console
+    console.log("Fault at " + func_name + ":" + String(loc) +
+                  " in wire_html");
+    
+    // Throw exception
+    throw ("wire_html:" + func_name + ":" + String(loc));
+  }
+
+  /*
+   * Event handler for handling changes to the canvas size option box.
+   */
+  function resizeChanged() {
+    
+    var func_name = "resizeChanged";
+    var eOpt;
+    var eCanvas;
+    var sv;
+    var sza;
+    var i;
+    var j;
+    var c;
+    var new_width;
+    var new_height;
+    
+    // Get the size option control and the canvas
+    eOpt = document.getElementById("optSize");
+    eCanvas = document.getElementById("cnvMain");
+    
+    if ((eOpt == null) || (eCanvas == null)) {
+      fault(func_name, 100);
+    }
+    
+    // Get the string value of the option control
+    sv = eOpt.value;
+    
+    // String value must be at least seven characters to be valid
+    if (sv.length < 7) {
+      fault(func_name, 200);
+    }
+    
+    // First four characters must be "size"
+    if (sv.slice(0, 4) !== "size") {
+      fault(func_name, 300);
+    }
+    
+    // Drop the first four characters
+    sv = sv.slice(4);
+    
+    // Rest of the string value should be split around an "x" delimiter
+    sza = sv.split("x");
+    if (sza.length !== 2) {
+      fault(func_name, 400);
+    }
+    
+    // Both of the field elements should be at least one character
+    if ((sza[0].length < 1) || (sza[1].length < 1)) {
+      fault(func_name, 500);
+    }
+    
+    // Both field elements should only have decimal digits
+    for(j = 0; j < sza.length; j++) {
+      for(i = 0; i < sza[j].length; i++) {
+        c = sza[j].charCodeAt(i);
+        if ((c < 0x30) || (c > 0x39)) {
+          fault(func_name, 600);
+        }
+      }
+    }
+    
+    // We can now get the desired width and height
+    new_width = parseInt(sza[0], 10);
+    new_height = parseInt(sza[1], 10);
+    
+    if ((!isFinite(new_width)) || (!isFinite(new_height))) {
+      fault(func_name, 650);
+    }
+    
+    // Check that new width and height are at least two
+    if ((new_width < 2) || (new_height < 2)) {
+      fault(func_name, 675);
+    }
+    
+    // Ignore the event if new width and height same as current
+    // dimensions
+    if ((new_width === eCanvas.width) && 
+        (new_height === eCanvas.height)) {
+      return;
+    }
+    
+    // If we got here, resize the canvas
+    eCanvas.width = new_width;
+    eCanvas.height = new_height;
+    
+    // @@TODO: redraw
+  }
+
+  /*
+   * Event handler for when the scene file control is changed.
+   */
+  function handleFile(event) {
+    
+    var func_name = "handleFile";
+    var e;
+    var f, r;
+    
+    // If file load already in progress, ignore this event
+    if (m_file_load) {
+      return;
+    }
+    
+    // Get the file control
+    e = document.getElementById("uplFile");
+    if (e == null) {
+      fault(func_name, 100);
+    }
+    
+    // Check whether at least one file selected
+    if (e.files.length > 0) {
+      // At least one file selected, so get the file object
+      f = e.files.item(0);
+      
+      // We don't want to get another file while we are waiting for the
+      // current file to load, so hide the DIV containing the control
+      // and set the m_file_load flag
+      e = document.getElementById("divFile");
+      if (e == null) {
+        fault(func_name, 200);
+      }
+      e.style.display = "none";
+      m_file_load = true;
+      
+      // Get a file reader object
+      r = new FileReader();
+      
+      // Add an asynchronous handler that is always called at the end of
+      // the operation, whether successful or not, that will clear the
+      // file load flag and show the file DIV again
+      r.addEventListener("loadend", function(ev) {
+        m_file_load = false;
+        e.style.display = "block";
+      });
+      
+      // Define an asynchronous handler that will be invoked once the
+      // whole file has been successfully read as a string
+      r.addEventListener("load", function(ev) {
+        
+        // Load the scene
+        wire_main.loadScene(ev.target.result);
+      });
+      
+      // Asynchronously read the file as text
+      r.readAsText(f);
+      
+    } else {
+      // No files selected, so load default scene
+      wire_main.loadDefaultScene();
+    }
+  }
+
+  /*
+   * Public functions
+   * ================
+   */
+  
+  /*
+   * Event handler for when the document is fully loaded.
+   *
+   * This should be registered later.
+   */
+  function handleLoad() {
+    
+    var func_name = "handleLoad";
+    var e;
+    
+    // Load the default scene
+    wire_main.loadDefaultScene();
+    
+    // @@TODO:
+    
+    // Add an event handler to resize box to automatically resize the
+    // canvas to match the resize box value
+    e = document.getElementById("optSize");
+    if (e == null) {
+      fault(func_name, 500);
+    }
+    e.onchange = resizeChanged;
+    
+    // Add an event handler to the file upload control to handle any
+    // file that is selected there
+    e = document.getElementById("uplFile");
+    if (e == null) {
+      fault(func_name, 510);
+    }
+    e.onchange = handleFile;
+    
+    // Hide the splash-screen DIV and show the main DIV
+    e = document.getElementById("divSplash");
+    if (e == null) {
+      fault(func_name, 900);
+    }
+    e.style.display = "none";
+    
+    e = document.getElementById("divMain");
+    if (e == null) {
+      fault(func_name, 910);
+    }
+    e.style.display = "block";
+  }
+
+  /*
+   * Export declarations
+   * ===================
+   * 
+   * All exports are declared within a global "wire_html" object.
+   */
+  window.wire_html = {
+    "handleLoad": handleLoad
+  };
+
+}());
+
+// Register the document loading event
+window.onload = wire_html.handleLoad;
+
+    </script>
+  </head>
+  <body>
+  
+    <!-- Screen displayed when JavaScript is disabled -->
+    <noscript>
+      <h1>Wire3D</h1>
+      <p>This web app requires JavaScript to function!</p>
+    </noscript>
+    
+    <!-- Initial splash screen, except when JavaScript disabled -->
+    <div id="divSplash">
+      Loading web app...
+    </div>
+    
+    <!-- The main program window, shown after page is loaded -->
+    <div id="divMain">
+      <canvas width="320" height="180" id="cnvMain">
+        HTML5 canvas support is required!
+      </canvas>
+      <div id="divSizer">
+        Canvas size:
+        <select id="optSize" name="optSize">
+          <!-- The format of the value fields is important -->
+          <option value="size320x180" selected>320 x 180</option>
+          <option value="size640x360">640 x 360</option>
+          <option value="size800x450">800 x 450</option>
+          <option value="size1024x576">1024 x 576</option>
+          <option value="size1280x720">1280 x 720</option>
+        </select>
+      </div>
+      <div id="divFile">
+        Scene file:<br/>
+        <input type="file" id="uplFile" name="uplFile"/>
+      </div>
+    </div>
+  </body>
+</html>
