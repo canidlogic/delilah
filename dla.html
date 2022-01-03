@@ -120,6 +120,45 @@ h1 {
     // Throw exception
     throw ("dla_html:" + func_name + ":" + String(loc));
   }
+  
+  /*
+   * Redraw the scene in the canvas.
+   */
+  function drawCanvas() {
+    
+    var func_name = "drawCanvas";
+    var eCanvas;
+    var rc, w, h;
+    
+    // Get the canvas element
+    eCanvas = document.getElementById("cnvMain");
+    if (eCanvas == null) {
+      fault(func_name, 100);
+    }
+    
+    // Get the width and height
+    w = eCanvas.width;
+    h = eCanvas.height;
+    
+    // Only proceed if both width and height are greater than zero
+    if ((w > 0) && (h > 0)) {
+      
+      // Get a 2D rendering context
+      rc = eCanvas.getContext("2d");
+      if (rc == null) {
+        fault(func_name, 200);
+      }
+      
+      // Do full render if both width and height are greater than one,
+      // else just blank to transparent black
+      if ((w > 1) && (h > 1)) {
+        dla_main.renderScene(rc, w, h);
+        
+      } else {
+        rc.clearRect(0, 0, w, h);
+      }
+    }
+  }
 
   /*
    * Event handler for handling changes to the canvas size option box.
@@ -206,7 +245,8 @@ h1 {
     eCanvas.width = new_width;
     eCanvas.height = new_height;
     
-    // @@TODO: redraw
+    // Redraw canvas
+    drawCanvas();
   }
 
   /*
@@ -259,8 +299,13 @@ h1 {
       // whole file has been successfully read as a string
       r.addEventListener("load", function(ev) {
         
-        // Load the scene
-        dla_main.loadScene(ev.target.result);
+        // Load the scene, redrawing canvas if successful, showing error
+        // message if unsuccessful
+        if (dla_main.loadScene(ev.target.result)) {
+          drawCanvas();
+        } else {
+          alert("Failed to load scene file!");
+        }
       });
       
       // Asynchronously read the file as text
@@ -320,6 +365,9 @@ h1 {
       fault(func_name, 910);
     }
     e.style.display = "block";
+    
+    // Finally, draw the canvas
+    drawCanvas();
   }
 
   /*
