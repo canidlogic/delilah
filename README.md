@@ -1,2 +1,2 @@
-# wire3d
-JavaScript 3D wireframe viewer
+# Delilah Viewer
+JavaScript 3D viewer
