@@ -1,10 +1,10 @@
 "use strict";
 
 /*
- * wire3d.js
- * =========
+ * dla.js
+ * ======
  * 
- * Main program module for Wire3D.
+ * Main program module for Delilah Viewer.
  */
 
 // Wrap everything in an anonymous function that we immediately invoke
@@ -41,9 +41,9 @@
    * Export declarations
    * ===================
    * 
-   * All exports are declared within a global "wire_main" object.
+   * All exports are declared within a global "dla_main" object.
    */
-  window.wire_main = {
+  window.dla_main = {
     "loadScene": loadScene,
     "loadDefaultScene": loadDefaultScene
   };
