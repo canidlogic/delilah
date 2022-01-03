@@ -3,7 +3,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8"/>
-    <title>Wire3D</title>
+    <title>Delilah Viewer</title>
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0"/>
@@ -66,7 +66,7 @@ h1 {
     </noscript>
 
     <!-- Load JavaScript modules -->
-    <script src="wire3d.js"></script>
+    <script src="dla.js"></script>
     
     <!-- Embedded script is for presentation tier functionality -->
     <script>
@@ -115,10 +115,10 @@ h1 {
     
     // Report error to console
     console.log("Fault at " + func_name + ":" + String(loc) +
-                  " in wire_html");
+                  " in dla_html");
     
     // Throw exception
-    throw ("wire_html:" + func_name + ":" + String(loc));
+    throw ("dla_html:" + func_name + ":" + String(loc));
   }
 
   /*
@@ -260,7 +260,7 @@ h1 {
       r.addEventListener("load", function(ev) {
         
         // Load the scene
-        wire_main.loadScene(ev.target.result);
+        dla_main.loadScene(ev.target.result);
       });
       
       // Asynchronously read the file as text
@@ -268,7 +268,7 @@ h1 {
       
     } else {
       // No files selected, so load default scene
-      wire_main.loadDefaultScene();
+      dla_main.loadDefaultScene();
     }
   }
 
@@ -288,7 +288,7 @@ h1 {
     var e;
     
     // Load the default scene
-    wire_main.loadDefaultScene();
+    dla_main.loadDefaultScene();
     
     // @@TODO:
     
@@ -326,16 +326,16 @@ h1 {
    * Export declarations
    * ===================
    * 
-   * All exports are declared within a global "wire_html" object.
+   * All exports are declared within a global "dla_html" object.
    */
-  window.wire_html = {
+  window.dla_html = {
     "handleLoad": handleLoad
   };
 
 }());
 
 // Register the document loading event
-window.onload = wire_html.handleLoad;
+window.onload = dla_html.handleLoad;
 
     </script>
   </head>
@@ -343,7 +343,7 @@ window.onload = wire_html.handleLoad;
   
     <!-- Screen displayed when JavaScript is disabled -->
     <noscript>
-      <h1>Wire3D</h1>
+      <h1>Delilah Viewer</h1>
       <p>This web app requires JavaScript to function!</p>
     </noscript>
     
