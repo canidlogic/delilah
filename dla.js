@@ -504,6 +504,23 @@
       }
       scount = data.scene.length / 5;
       
+      // Check that all the array counts are in valid ranges
+      if (pscount > 65535) {
+        syntax("At most 65535 point styles are allowed");
+      }
+      if (lscount > 65535) {
+        syntax("At most 65535 line styles are allowed");
+      }
+      if (rcount > 65535) {
+        syntax("At most 65535 radius definitions are allowed");
+      }
+      if (vcount > 65535) {
+        syntax("At most 65535 vertex definitions are allowed");
+      }
+      if (scount > 65535) {
+        syntax("At most 65535 scene objects are allowed");
+      }
+      
       // Create a new typed vertex array buffer and copy in all the
       // vertices, checking along the way that everything is a finite
       // number
