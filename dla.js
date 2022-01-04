@@ -388,12 +388,15 @@
     var func_name = "loadScene";
     var result;
     var data;
+    var i, a, b, c;
     
     var pscount;
     var lscount;
     var rcount;
     var vcount;
     var scount;
+    
+    var vtx;
     
     // Check parameter
     if (typeof str !== "string") {
@@ -500,6 +503,36 @@
         syntax("Scene graph array be a multiple of 5");
       }
       scount = data.scene.length / 5;
+      
+      // Create a new typed vertex array buffer and copy in all the
+      // vertices, checking along the way that everything is a finite
+      // number
+      vtx = new Float64Array(vcount);
+      for(i = 0; i < vcount; i++) {
+        // Get each of the vertex elements
+        a = data.vertex[i * 3];
+        b = data.vertex[(i * 3) + 1];
+        c = data.vertex[(i * 3) + 2];
+        
+        // Check that everything is a number
+        if ((typeof a !== "number") ||
+            (typeof b !== "number") ||
+            (typeof c !== "number")) {
+          syntax("Vertex buffer may only contain numbers");
+        }
+        
+        // Check that everything is finite
+        if ((!isFinite(a)) ||
+            (!isFinite(b)) ||
+            (!isFinite(c))) {
+          syntax("Vertex buffer may only contain finite values");
+        }
+        
+        // Store in the vertex buffer
+        vtx[ i * 3     ] = a;
+        vtx[(i * 3) + 1] = b;
+        vtx[(i * 3) + 2] = c;
+      }
       
       // @@TODO:
       
