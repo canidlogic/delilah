@@ -223,6 +223,77 @@
   var m_lstyle;
   
   /*
+   * The error message from the last failure of loadScene(), or false
+   * if no error message stored.
+   */
+  var m_errmsg = false;
+  
+  /*
+   * Local functions
+   * ===============
+   */
+  
+  /*
+   * Report an error to console and throw an exception for a fault
+   * occurring within this module.
+   *
+   * Parameters:
+   *
+   *   func_name : string - the name of the function in this module
+   *
+   *   loc : number(int) - the location within the function
+   */
+  function fault(func_name, loc) {
+    
+    // If parameters not valid, set to unknown:0
+    if ((typeof func_name !== "string") || (typeof loc !== "number")) {
+      func_name = "unknown";
+      loc = 0;
+    }
+    loc = Math.floor(loc);
+    if (!isFinite(loc)) {
+      loc = 0;
+    }
+    
+    // Report error to console
+    console.log("Fault at " + func_name + ":" + String(loc) +
+                  " in dla_main");
+    
+    // Throw exception
+    throw ("dla_main:" + func_name + ":" + String(loc));
+  }
+  
+  /*
+   * Report a syntax error within a scene file and throw an exception.
+   * 
+   * The exception is always the string "dla_main:syntax_error".
+   * 
+   * If m_errmsg is false, then it will be set to reason if reason is a
+   * string, otherwise to "Unknown error" if reason is not a string.  If
+   * m_errmsg is not false, then it will not be changed by this
+   * function.
+   * 
+   * Parameters:
+   * 
+   *   reason : string - the syntax error reason
+   */
+  function syntax(reason) {
+    
+    // If reason not a string, set to "Unknown error"
+    if (typeof reason !== "string") {
+      reason = "Unknown error";
+    }
+    
+    // Store reason if no reason stored yet
+    if (m_errmsg === false) {
+      m_errmsg = reason;
+    }
+    
+    // Throw syntax error
+    throw ("dla_main:syntax_error");
+  }
+  
+  /*
    * Public functions
    * ================
    */
@@ -247,9 +318,34 @@
   }
   
   /*
+   * Retrieve error information about the last failed invocation of the
+   * loadScene() function.
+   * 
+   * If the last invocation of loadScene() didn't fail, or it has never
+   * been called, then this function returns the string "No error".
+   * Otherwise, it returns an error message string.  The error message
+   * string begins with a capital letter but has no punctuation or line
+   * break at the end.
+   * 
+   * Return:
+   * 
+   *   string - the error message from the last failed loadScene()
+   *   operation, or "No error"
+   */
+  function loadError() {
+    
+    if (m_errmsg === false) {
+      return "No error";
+    } else {
+      return m_errmsg;
+    }
+  }
+  
+  /*
    * Load a scene from a given string.
    * 
-   * If false is returned, the current scene is unmodified
+   * If false is returned, the current scene is unmodified.  You can use
+   * the loadError() function to get detail about what went wrong.
    * 
    * Parameters:
    * 
@@ -260,9 +356,41 @@
    *   true if successful, false if scene text has syntax error
    */
   function loadScene(str) {
-    // @@TODO:
-    console.log("loadScene");
-    return true;
+    
+    var func_name = "loadScene";
+    var result;
+    
+    // Check parameter
+    if (typeof str !== "string") {
+      fault(func_name, 100);
+    }
+    
+    // Begin by clearing the error message and setting result to true
+    m_errmsg = false;
+    result = true;
+    
+    // Wrap everything in an exception handler which in case of syntax
+    // error sets the result to false and in case of any other kind of
+    // exception rethrows the exception
+    try {
+      
+      // @@TODO:
+      
+    } catch (ex) {
+      // Check whether this was a syntax error
+      if ((typeof ex === "string") &&
+            (ex === "dla_main:syntax_error")) {
+        // Syntax error, so just set result to false
+        result = false;
+      
+      } else {
+        // Other kinds of exceptions are rethrown
+        throw(ex);
+      }
+    }
+    
+    // Return result
+    return result;
   }
   
   /*
@@ -281,6 +409,7 @@
    */
   window.dla_main = {
     "renderScene": renderScene,
+    "loadError": loadError,
     "loadScene": loadScene,
     "loadDefaultScene": loadDefaultScene
   };
