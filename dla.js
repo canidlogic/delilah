@@ -359,6 +359,7 @@
     
     var func_name = "loadScene";
     var result;
+    var data;
     
     // Check parameter
     if (typeof str !== "string") {
@@ -373,6 +374,16 @@
     // error sets the result to false and in case of any other kind of
     // exception rethrows the exception
     try {
+      
+      // Parse the string as JSON
+      try {
+        data = JSON.parse(str);
+      } catch (ex) {
+        syntax("Not a valid JSON file");
+      }
+      if (data == null) {
+        syntax("Not a valid JSON file");
+      }
       
       // @@TODO:
       
