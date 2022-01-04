@@ -360,6 +360,8 @@
     var func_name = "loadScene";
     var result;
     var data;
+    var pscount;
+    var lscount;
     
     // Check parameter
     if (typeof str !== "string") {
@@ -383,6 +385,39 @@
       }
       if (data == null) {
         syntax("Not a valid JSON file");
+      }
+      
+      // Top-level JSON entity must be object
+      if ((typeof data !== "object") || (data instanceof Array)) {
+        syntax("Top-level entity must be object");
+      }
+      
+      // If the point styles member exists, it must be an array; store
+      // its length as the point styles count, else set point styles
+      // count to zero
+      if ("pstyle" in data) {
+        if ((typeof data.pstyle !== "object") ||
+              (!(data.pstyle instanceof Array))) {
+          syntax("pstyle property must be array");
+        }
+        pscount = pstyle.length;
+        
+      } else {
+        pscount = 0;
+      }
+      
+      // If the line styles member exists, it must be an array; store
+      // its length as the line styles count, else set line styles count
+      // to zero
+      if ("lstyle" in data) {
+        if ((typeof data.lstyle !== "object") ||
+              (!(data.lstyle instanceof Array))) {
+          syntax("lstyle property must be array");
+        }
+        lscount = lstyle.length;
+        
+      } else {
+        lscount = 0;
       }
       
       // @@TODO:
