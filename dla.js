@@ -48,6 +48,18 @@
   var m_tvx;
   
   /*
+   * The radius buffer.
+   * 
+   * Only available if m_loaded.
+   * 
+   * This is a Float64Array with up to 65535 elements.  It may be empty.
+   * Each element must be a finite value that is greater than zero.
+   * Sphere objects reference elements in this array to declare their
+   * radius.
+   */
+  var m_rad;
+  
+  /*
    * The scene object array.
    * 
    * Only available if m_loaded.
@@ -60,13 +72,16 @@
    * The five 16-bit words have the following meaning:
    * 
    *   1 : vertex index of first vertex
-   *   2 : vertex index of second vertex, or 0xffff if point
-   *   3 : vertex index of third vertex, or 0xffff if point or line
-   *   4 : fill color if triangle, else ignored
+   *   2 : vertex index of second vertex, or 0xffff if point or sphere
+   *   3 : index of third vertex or radius, or 0xffff if point or line
+   *   4 : fill color if triangle or sphere, else ignored
    *   5 : style (see below)
    * 
-   * The object can be a point (one vertex), a line (two vertices), or a
-   * triangle (three vertices).
+   * The object can be a point (one vertex), a line (two vertices), a
+   * sphere (one vertex and one radius) or a triangle (three vertices).
+   * All indices that are not 0xffff are indices into the vertex buffer,
+   * except the radius index for spheres is an index into the radius
+   * buffer.
    * 
    * The fill color for triangles is in 15-bit HiColor format with most
    * significant bit zero, as follows:
@@ -74,10 +89,18 @@
    *   MSB ----------- LSB
    *   0rrr rrgg gggb bbbb
    * 
+   * The fill color for spheres has the same format, except 0xffff is
+   * allowed as a special value indicating the sphere is transparent and
+   * has no fill.
+   * 
    * For point objects, the style is an index into the point style
    * array.
    * 
    * For line objects, the style is an index into the line style array.
+   * 
+   * For sphere objects, the style is an index into the line style array
+   * indicating how to stroke the circular outline of the sphere, or
+   * 0xffff indicating that the circular outline should not be stroked.
    * 
    * For triangle objects, the style encodes three five-bit selectors
    * and the most significant bit is zero, as follows:
@@ -133,7 +156,8 @@
    * 
    * This is a regular array, where each array element is an object.
    * These style objects are referenced from the style words of scene
-   * objects of point type in m_scene.
+   * objects of point type in m_scene.  There may be at most 65535 point
+   * styles, and the array may also be empty.
    * 
    * All point style objects have the following properties:
    * 
@@ -159,7 +183,9 @@
    * 
    * The size must be greater than 0.0.  It defines how large the
    * rendered shape is.  This is the size when rendered in 2D,
-   * regardless of the Z distance.
+   * regardless of the Z distance.  If you want a 3D sphere, don't use
+   * the circle point shape, because its size doesn't change according
+   * to distance; instead, use a sphere object in the scene.
    * 
    * The stroke width must either be 0.0 or a value greater than 0.0.
    * If it is 0.0, the outline of the shape is not stroked.  Otherwise,
@@ -201,9 +227,11 @@
    * 
    * This is a regular array, where each array element is an object.
    * These style objects are referenced from the style words of scene
-   * objects of line or triangle type in m_scene.  Line objects may
-   * reference any of the line styles, while triangle styles are only
-   * able to reference the first 31 line styles.
+   * objects of line, sphere, or triangle type in m_scene.  Line and
+   * sphere objects may reference any of the line styles, while triangle
+   * styles are only able to reference the first 31 line styles.  There
+   * may be at most 65535 line styles, and the line style array may also
+   * be empty.
    * 
    * All line style objects have the following properties:
    * 
@@ -360,6 +388,7 @@
     var func_name = "loadScene";
     var result;
     var data;
+    
     var pscount;
     var lscount;
     
