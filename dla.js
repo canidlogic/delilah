@@ -388,7 +388,8 @@
     var func_name = "loadScene";
     var result;
     var data;
-    var i, a, b, c;
+    var i, a, b, c, x, y;
+    var ii, ij, ik;
     
     var pscount;
     var lscount;
@@ -397,6 +398,7 @@
     var scount;
     
     var vtx;
+    var scene;
     
     // Check parameter
     if (typeof str !== "string") {
@@ -549,6 +551,161 @@
         vtx[ i * 3     ] = a;
         vtx[(i * 3) + 1] = b;
         vtx[(i * 3) + 2] = c;
+      }
+      
+      // Create a new typed scene object buffer and copy in all the
+      // scene objects, checking their formats and references along the
+      // way
+      scene = new Uint16Array(scount);
+      for(i = 0; i < scount; i++) {
+        // Get each of the scene object elements
+        a = data.scene[i * 5];
+        b = data.scene[(i * 5) + 1];
+        c = data.scene[(i * 5) + 2];
+        x = data.scene[(i * 5) + 3];
+        y = data.scene[(i * 5) + 4];
+        
+        // Everything must be a number
+        if ((typeof a !== "number") ||
+            (typeof b !== "number") ||
+            (typeof c !== "number") ||
+            (typeof x !== "number") ||
+            (typeof y !== "number")) {
+          syntax("Scene buffer may only contain numbers");
+        }
+        
+        // Floor everything to integer value
+        a = Math.floor(a);
+        b = Math.floor(b);
+        c = Math.floor(c);
+        x = Math.floor(x);
+        y = Math.floor(y);
+        
+        // Integer values must all be finite
+        if ((!isFinite(a)) ||
+            (!isFinite(b)) ||
+            (!isFinite(c)) ||
+            (!isFinite(x)) ||
+            (!isFinite(y))) {
+          syntax("Scene buffer may only contain finite integers");
+        }
+        
+        // Integer values must all be in unsigned 16-bit range
+        if ((a < 0) || (a > 65535) ||
+            (b < 0) || (b > 65535) ||
+            (c < 0) || (c > 65535) ||
+            (x < 0) || (x > 65535) ||
+            (y < 0) || (y > 65535)) {
+          syntax("Scene buffer may only contain 16-bit integers");
+        }
+        
+        // First element must always be a valid vertex index
+        if (a >= vcount) {
+          syntax("First vertex must always be valid index");
+        }
+        
+        // Rest of checking depends on object type
+        if ((b !== 65535) && (c !== 65535)) {
+          // All three vertices defined, so TRIANGLE -- begin by
+          // checking vertex ranges
+          if ((b >= vcount) || (c >= vcount)) {
+            syntax("Triangles must have three valid vertices");
+          }
+          
+          // Check that fill color is in HiColor range
+          if (x >= 0x8000) {
+            syntax("Triangles must have 15-bit fill color");
+          }
+          
+          // Check that style word is in 15-bit range
+          if (y >= 0x8000) {
+            syntax("Triangles must have 15-bit style");
+          }
+          
+          // Get the edge selector values
+          ii = (y >> 10);
+          ij = (y >> 5) & 0x1f;
+          ik = y & 0x1f;
+          
+          // For edge selectors that are greater than zero, make sure
+          // that one less than their value is a valid line style
+          if (ii > 0) {
+            if (ii > lscount) {
+              syntax("Selectors must reference line style or none");
+            }
+          }
+          if (ij > 0) {
+            if (ij > lscount) {
+              syntax("Selectors must reference line style or none");
+            }
+          }
+          if (ik > 0) {
+            if (ik > lscount) {
+              syntax("Selectors must reference line style or none");
+            }
+          }
+          
+        } else if ((b === 65535) && (c !== 65535)) {
+          // First and last vertices defined, so SPHERE -- begin by
+          // checking radius range
+          if (c >= rcount) {
+            syntax("Spheres must have valid radius indices");
+          }
+          
+          // Check that fill color is in HiColor range or is the special
+          // 0xffff value indicating no fill
+          if ((x >= 0x8000) && (x !== 0xffff)) {
+            syntax("Spheres must have 15-bit fill or be transparent");
+          }
+          
+          // Fifth element must be index into line styles or special
+          // 0xffff value indicating no edge line
+          if ((y >= lscount) && (y !== 0xffff)) {
+            syntax("Spheres must reference line style or transparent");
+          }
+          
+          // Spheres may not have both transparent fill and transparent
+          // stroke
+          if ((x === 0xffff) && (y === 0xffff)) {
+            syntax("Spheres may not be fully transparent");
+          }
+          
+        } else if ((b !== 65535) && (c === 65535)) {
+          // First and second vertices defined, so LINE -- begin by
+          // checking vertex range
+          if (b >= vcount) {
+            syntax("Lines must have two valid vertices");
+          }
+          
+          // Set fourth element to zero since it is not used
+          x = 0;
+          
+          // Check that fifth element is index into line styles
+          if (y >= lscount) {
+            syntax("Lines must reference defined line style");
+          }
+          
+        } else if ((b === 65535) && (c === 65535)) {
+          // Only first vertex defined, so POINT -- begin by setting
+          // fourth element to zero since it is not used
+          x = 0;
+          
+          // Check that fifth element is index into point styles
+          if (y >= pscount) {
+            syntax("Points must reference defined point style");
+          }
+          
+        } else {
+          // Shouldn't happen
+          fault(func_name, 200);
+        }
+        
+        // Store in the scene buffer
+        scene[ i * 5     ] = a;
+        scene[(i * 5) + 1] = b;
+        scene[(i * 5) + 2] = c;
+        scene[(i * 5) + 3] = x;
+        scene[(i * 5) + 4] = y;
       }
       
       // @@TODO:
