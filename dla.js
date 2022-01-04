@@ -391,6 +391,9 @@
     
     var pscount;
     var lscount;
+    var rcount;
+    var vcount;
+    var scount;
     
     // Check parameter
     if (typeof str !== "string") {
@@ -429,7 +432,7 @@
               (!(data.pstyle instanceof Array))) {
           syntax("pstyle property must be array");
         }
-        pscount = pstyle.length;
+        pscount = data.pstyle.length;
         
       } else {
         pscount = 0;
@@ -443,11 +446,60 @@
               (!(data.lstyle instanceof Array))) {
           syntax("lstyle property must be array");
         }
-        lscount = lstyle.length;
+        lscount = data.lstyle.length;
         
       } else {
         lscount = 0;
       }
+      
+      // If the radius member exists, it must be an array; store its
+      // length as the radius count, else set radius count to zero
+      if ("radius" in data) {
+        if ((typeof data.radius !== "object") ||
+              (!(data.radius instanceof Array))) {
+          syntax("radius property must be array");
+        }
+        rcount = data.radius.length;
+        
+      } else {
+        rcount = 0;
+      }
+      
+      // The vertex member must exist and be an array and have a number
+      // of elements that is greater than zero and divisible by three;
+      // set the vertex count
+      if (!("vertex" in data)) {
+        syntax("Missing vertex property");
+      }
+      if ((typeof data.vertex !== "object") ||
+            (!(data.vertex instanceof Array))) {
+        syntax("vertex property must be array");
+      }
+      if (data.vertex.length < 1) {
+        syntax("Vertex buffer may not be empty");
+      }
+      if ((data.vertex.length % 3) !== 0) {
+        syntax("Vertex buffer array must be a multiple of 3");
+      }
+      vcount = data.vertex.length / 3;
+      
+      // The scene member must exist and be an array and have a number
+      // of elements that is greater than zero and divisible by five;
+      // set the scene count
+      if (!("scene" in data)) {
+        syntax("Missing scene property");
+      }
+      if ((typeof data.scene !== "object") ||
+            (!(data.scene instanceof Array))) {
+        syntax("scene property must be array");
+      }
+      if (data.scene.length < 1) {
+        syntax("Scene graph may not be empty");
+      }
+      if ((data.scene.length % 5) !== 0) {
+        syntax("Scene graph array be a multiple of 5");
+      }
+      scount = data.scene.length / 5;
       
       // @@TODO:
       
