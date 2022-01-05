@@ -13,6 +13,22 @@
 (function() {
   
   /*
+   * Constants
+   * =========
+   */
+  
+  /*
+   * String containing each of the allowed shape codes for point styles.
+   */
+  var VALID_SHAPES = "csmudlrpx";
+  
+  /*
+   * String containing each of the shape codes that permit a fill
+   * property.
+   */
+  var FILL_SHAPES = "csmudlr";
+  
+  /*
    * Local data
    * ==========
    */
@@ -389,7 +405,7 @@
     var func_name = "loadScene";
     var result;
     var data;
-    var i, a, b, c, x, y;
+    var i, a, b, c, x, y, o;
     var ii, ij, ik;
     
     var pscount;
@@ -401,6 +417,7 @@
     var vtx;
     var scene;
     var rbuf;
+    var ps;
     
     // Check parameter
     if (typeof str !== "string") {
@@ -734,6 +751,167 @@
           // Store the radius
           rbuf[i] = a;
         }
+      }
+      
+      // If there is at least one point style defined, define the point
+      // style table, checking that point styles are valid; otherwise,
+      // set the point styles table to an empty array
+      ps = [];
+      for(i = 0; i < pscount; i++) {
+        // Get the current style object
+        o = data.pstyle[i];
+        
+        // Make sure style is an object
+        if ((typeof o != "object") || (o instanceof Array)) {
+          syntax("Point styles must be objects");
+        }
+        
+        // Must have "shape" "size" and "stroke" properties
+        if (!("shape" in o)) {
+          syntax("All point styles must have shape property");
+        }
+        if (!("size" in o)) {
+          syntax("All point styles must have size property");
+        }
+        if (!("stroke" in o)) {
+          syntax("All point styles must have stroke property");
+        }
+        
+        // Get the core property values
+        a = o.shape;
+        b = o.size;
+        c = o.stroke;
+        
+        // Make sure that shape is a string with one character that is
+        // a valid shape code
+        if (typeof a !== "string") {
+          syntax("Point style shape code must be string");
+        }
+        if (a.length !== 1) {
+          syntax("Point style shape code must be one character");
+        }
+        if (VALID_SHAPES.indexOf(a) < 0) {
+          syntax("Invalid shape code '" + a + "' in point style");
+        }
+        
+        // Make sure size is a finite number that is greater than zero
+        if (typeof b !== "number") {
+          syntax("Point style size must be number");
+        }
+        if (!isFinite(b)) {
+          syntax("Point style size must be finite");
+        }
+        if (!(b > 0.0)) {
+          syntax("Point style size must be greater than zero");
+        }
+        
+        // Make sure stroke is a finite number that is greater than or
+        // equal to zero
+        if (typeof c !== "number") {
+          syntax("Point style stroke must be number");
+        }
+        if (!isFinite(c)) {
+          syntax("Point style stroke must be finite");
+        }
+        if (!(c >= 0.0)) {
+          syntax("Point style stroke must be zero or greater");
+        }
+        
+        // If this shape is a filled shape, there must be a "fill"
+        // property, which should be floored to a finite integer that is
+        // either 15-bit or 0xffff; if the shape is not a filled shape,
+        // there must not be a "fill" property
+        x = 0;
+        if (FILL_SHAPES.indexOf(a) >= 0) {
+          // Fill shape, so must have property
+          if (!("fill" in o)) {
+            syntax("Point style must have fill for filled shapes");
+          }
+          
+          // Get the fill property
+          x = o.fill;
+          
+          // Make sure it is a number
+          if (typeof x !== "number") {
+            syntax("Point style fill must be number");
+          }
+          
+          // Floor it
+          x = Math.floor(x);
+          
+          // Make sure it is finite
+          if (!isFinite(x)) {
+            syntax("Point style fill must be finite integer");
+          }
+          
+          // Make sure 15-bit or 0xffff
+          if (((x < 0) || (x > 0x7fff)) && (x !== 0xffff)) {
+            syntax("Point style fill must be 15-bit or 65535");
+          }
+          
+        } else {
+          // Not a fill shape, so must not have property
+          if ("fill" in o) {
+            syntax("Point style may not have fill for unfilled shapes");
+          }
+        }
+        
+        // If the stroke size is greater than zero, there must be an
+        // "ink" property, which should be floored to a finite integer
+        // that is 15-bit; if the stroke size is zero, there must not be
+        // an "ink" property
+        y = 0;
+        if (c > 0.0) {
+          // Stroke, so must have property
+          if (!("ink" in o)) {
+            syntax("Point style with stroke must have ink");
+          }
+          
+          // Get the ink property
+          y = o.fill;
+          
+          // Make sure it is a number
+          if (typeof y !== "number") {
+            syntax("Point style ink must be number");
+          }
+          
+          // Floor it
+          y = Math.floor(y);
+          
+          // Make sure it is finite
+          if (!isFinite(y)) {
+            syntax("Point style ink must be finite integer");
+          }
+          
+          // Make sure 15-bit
+          if ((y < 0) || (y > 0x7fff)) {
+            syntax("Point style ink must be 15-bit");
+          }
+          
+        } else {
+          // No stroke, so must not have property
+          if ("ink" in o) {
+            syntax("Point style with zero stroke may not have ink");
+          }
+        }
+        
+        // Now create a new object and fill it with the checked and
+        // possibly adjusted properties
+        o = {};
+        
+        o.shape  = a;
+        o.size   = b;
+        o.stroke = c;
+        
+        if (FILL_SHAPES.indexOf(a) >= 0) {
+          o.fill = x;
+        }
+        if (c > 0.0) {
+          o.ink  = y;
+        }
+        
+        // Push the new style to the end of the point styles array
+        ps.push(o);
       }
       
       // @@TODO:
