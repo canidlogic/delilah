@@ -70,6 +70,62 @@ h1 {
 #divFile {
   margin-top: 1em;
 }
+
+#divCamError {
+  display: none;
+  margin-top: 2em;
+  font-weight: bold;
+  color: red;
+  padding-left: 0.5em;
+  padding-right: 0.5em;
+  padding-top: 1em;
+  padding-bottom: 1em;
+  border: medium solid;
+  background-color: white;
+}
+
+#spnCamReason {
+  font-weight: normal;
+  color: black;
+}
+
+#divCam {
+  margin-top: 1em;
+}
+
+#divCam th {
+  font-weight: normal;
+  text-align: left;
+  text-decoration: underline;
+  padding-bottom: 0.5em;
+}
+
+#divCam .lbl {
+  text-align: right;
+  font-family: monospace;
+  padding-left: 0.25em;
+  padding-right: 0.25em;
+}
+
+#divCam .suf {
+  text-align: left;
+  font-family: monospace;
+  padding-left: 0.25em;
+  padding-right: 0.25em;
+}
+
+#divCam .box input {
+  width: 5em;
+}
+
+#divCam .abox input {
+  width: 3em;
+}
+
+#divCam .btn {
+  text-align: left;
+  padding-top: 0.5em;
+}
   
     </style>
     <!-- If JavaScript disabled, do not show the splash screen -->
@@ -453,6 +509,234 @@ h1 {
   }
   
   /*
+   * Read the current camera position and update the display controls
+   * with the current position.
+   *
+   * This also hides any camera error message that may be displayed.
+   */
+  function readCamera() {
+    
+    var func_name = "readCamera";
+    var cpos;
+    var x, n;
+    var eX, eY, eZ, eYaw, ePitch, eRoll;
+    
+    // Dismiss any camera error
+    dismiss("divCamError");
+    
+    // Get the camera position
+    cpos = dla_main.getCamera();
+    
+    // Convert normalized angles to degrees
+    cpos[3] = cpos[3] * 360.0;
+    cpos[4] = cpos[4] * 90.0;
+    cpos[5] = cpos[5] * 360.0;
+    
+    // Transform each coordinate to a string, using one decimal place
+    for(x = 0; x < 6; x++) {
+      n = cpos[x];
+      n = n.toFixed(1);
+      cpos[x] = n;
+    }
+    
+    // Get the form controls
+    eX = document.getElementById("txtCamX");
+    if (eX == null) {
+      fault(func_name, 101);
+    }
+    
+    eY = document.getElementById("txtCamY");
+    if (eY == null) {
+      fault(func_name, 102);
+    }
+    
+    eZ = document.getElementById("txtCamZ");
+    if (eZ == null) {
+      fault(func_name, 103);
+    }
+    
+    eYaw = document.getElementById("txtCamYaw");
+    if (eYaw == null) {
+      fault(func_name, 104);
+    }
+    
+    ePitch = document.getElementById("txtCamPitch");
+    if (ePitch == null) {
+      fault(func_name, 105);
+    }
+    
+    eRoll = document.getElementById("txtCamRoll");
+    if (eRoll == null) {
+      fault(func_name, 106);
+    }
+    
+    // Update each form control
+    eX.value     = cpos[0];
+    eY.value     = cpos[1];
+    eZ.value     = cpos[2];
+    eYaw.value   = cpos[3];
+    ePitch.value = cpos[4];
+    eRoll.value  = cpos[5];
+  }
+  
+  /*
+   * Attempt to update the camera position using the current values of
+   * the form controls.
+   *
+   * If any of the values are invalid, the camera position is not
+   * changed, the camera error box is displayed with the appropriate
+   * message, and the input boxes retain their current values.
+   *
+   * If the values are valid, they are used to update the camera
+   * position, the input boxes are updated with the new current
+   * position, and the canvas is re-drawn.
+   *
+   * Note that the values may change on the update due to rounding and
+   * other adjustments.
+   */
+  function writeCamera() {
+    
+    var func_name = "writeCamera";
+    var eX, eY, eZ, eYaw, ePitch, eRoll;
+    var vx, vy, vz, vyaw, vpitch, vroll;
+    
+    // Dismiss any current camera error
+    dismiss("divCamError");
+    
+    // Get the form controls
+    eX = document.getElementById("txtCamX");
+    if (eX == null) {
+      fault(func_name, 101);
+    }
+    
+    eY = document.getElementById("txtCamY");
+    if (eY == null) {
+      fault(func_name, 102);
+    }
+    
+    eZ = document.getElementById("txtCamZ");
+    if (eZ == null) {
+      fault(func_name, 103);
+    }
+    
+    eYaw = document.getElementById("txtCamYaw");
+    if (eYaw == null) {
+      fault(func_name, 104);
+    }
+    
+    ePitch = document.getElementById("txtCamPitch");
+    if (ePitch == null) {
+      fault(func_name, 105);
+    }
+    
+    eRoll = document.getElementById("txtCamRoll");
+    if (eRoll == null) {
+      fault(func_name, 106);
+    }
+    
+    // Parse each value as a float
+    vx = parseFloat(eX.value);
+    if (!isFinite(vx)) {
+      writeTo("spnCamReason", "Can't parse X as a float");
+      present("divCamError");
+      return;
+    }
+    
+    vy = parseFloat(eY.value);
+    if (!isFinite(vy)) {
+      writeTo("spnCamReason", "Can't parse Y as a float");
+      present("divCamError");
+      return;
+    }
+    
+    vz = parseFloat(eZ.value);
+    if (!isFinite(vz)) {
+      writeTo("spnCamReason", "Can't parse Z as a float");
+      present("divCamError");
+      return;
+    }
+    
+    vyaw = parseFloat(eYaw.value);
+    if (!isFinite(vyaw)) {
+      writeTo("spnCamReason", "Can't parse yaw as a float");
+      present("divCamError");
+      return;
+    }
+    
+    vpitch = parseFloat(ePitch.value);
+    if (!isFinite(vpitch)) {
+      writeTo("spnCamReason", "Can't parse pitch as a float");
+      present("divCamError");
+      return;
+    }
+    
+    vroll = parseFloat(eRoll.value);
+    if (!isFinite(vroll)) {
+      writeTo("spnCamReason", "Can't parse roll as a float");
+      present("divCamError");
+      return;
+    }
+
+    // Yaw must be in range [-360, 360]
+    if (!((vyaw >= -360.0) && (vyaw <= 360.0))) {
+      writeTo("spnCamReason", "Yaw must be in range [-360, 360]");
+      present("divCamError");
+      return;
+    }
+    
+    // Pitch must be in range [-90, 90]
+    if (!((vpitch >= -90.0) && (vpitch <= 90.0))) {
+      writeTo("spnCamReason", "Pitch must be in range [-90, 90]");
+      present("divCamError");
+      return;
+    }
+    
+    // Roll must be in range [-360, 360]
+    if (!((vroll >= -360.0) && (vroll <= 360.0))) {
+      writeTo("spnCamReason", "Roll must be in range [-360, 360]");
+      present("divCamError");
+      return;
+    }
+
+    // If yaw or roll are negative, add 360 to them
+    if (!(vyaw >= 0.0)) {
+      vyaw = vyaw + 360.0;
+    }
+    if (!(vroll >= 0.0)) {
+      vroll = vroll + 360.0;
+    }
+
+    // Convert yaw and roll to normalized angle space
+    vyaw = vyaw / 360.0;
+    vroll = vroll / 360.0;
+    
+    // Convert pitch to normalized angle space
+    vpitch = vpitch / 90.0;
+
+    // Clamp all angle values to their normalized spaces
+    vyaw = Math.min(Math.max(0.0, vyaw), 1.0);
+    vpitch = Math.min(Math.max(-1.0, vpitch), 1.0);
+    vroll = Math.min(Math.max(0.0, vroll), 1.0);
+    
+    // For yaw and roll, if they are at 1.0, set to 0.0
+    if (vyaw === 1.0) {
+      vyaw = 0.0;
+    }
+    if (vroll === 1.0) {
+      vroll = 0.0;
+    }
+
+    // Update camera position
+    dla_main.setCamera(vx, vy, vz, vyaw, vpitch, vroll);
+    
+    // Write the new values to the the form controls
+    readCamera();
+    
+    // Re-draw the canvas
+    drawCanvas();
+  }
+  
+  /*
    * Event handler for when the document is fully loaded.
    *
    * This should be registered later.
@@ -483,6 +767,9 @@ h1 {
     }
     e.onchange = handleFile;
     
+    // Update controls to reflect current state
+    readCamera();
+    
     // Hide the splash-screen DIV and show the main DIV
     e = document.getElementById("divSplash");
     if (e == null) {
@@ -508,6 +795,8 @@ h1 {
    */
   window.dla_html = {
     "dismiss": dismiss,
+    "readCamera": readCamera,
+    "writeCamera": writeCamera,
     "handleLoad": handleLoad
   };
 
@@ -558,6 +847,62 @@ window.onload = dla_html.handleLoad;
       <div id="divFile">
         Scene file:<br/>
         <input type="file" id="uplFile" name="uplFile"/>
+      </div>
+      <div id="divCamError">
+        Failed to update camera position:<br/>
+        <span id="spnCamReason">&nbsp;</span><br/>
+        <br/>
+        <a href="javascript:void dla_html.dismiss('divCamError');">
+          Dismiss
+        </a>
+      </div>
+      <div id="divCam">
+        <table>
+          <tr>
+            <th colspan="5">Camera position</th>
+          </tr>
+          <tr>
+            <td class="lbl">X:</td>
+            <td class="box">
+              <input type="text" id="txtCamX" name="txtCamX"/>
+            </td>
+            <td class="lbl">Yaw:</td>
+            <td class="abox">
+              <input type="text" id="txtCamYaw" name="txtCamYaw"/>
+            </td>
+            <td class="suf">degrees</td>
+          </tr>
+          <tr>
+            <td class="lbl">Y:</td>
+            <td class="box">
+              <input type="text" id="txtCamY" name="txtCamY"/>
+            </td>
+            <td class="lbl">Pitch:</td>
+            <td class="abox">
+              <input type="text" id="txtCamPitch" name="txtCamPitch"/>
+            </td>
+            <td class="suf">degrees</td>
+          </tr>
+          <tr>
+            <td class="lbl">Z:</td>
+            <td class="box">
+              <input type="text" id="txtCamZ" name="txtCamZ"/>
+            </td>
+            <td class="lbl">Roll:</td>
+            <td class="abox">
+              <input type="text" id="txtCamRoll" name="txtCamRoll"/>
+            </td>
+            <td class="suf">degrees</td>
+          </tr>
+          <tr>
+            <td colspan="5" class="btn">
+              <input type="button" value="Set"
+                onclick="dla_html.writeCamera()"/>
+              <input type="button" value="Get"
+                onclick="dla_html.readCamera()"/>
+            </td>
+          </tr>
+        </table>
       </div>
     </div>
   </body>
