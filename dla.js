@@ -34,6 +34,43 @@
    */
   
   /*
+   * The 3D position of the camera.
+   * 
+   * The first three numbers are the (X, Y, Z) coordinate of the camera
+   * in worldspace.
+   * 
+   * The fourth number is the yaw angle about the Y axis.  An angle of
+   * zero means that the camera is looking towards negative infinity on
+   * the Z axis (right-handed).  When looking down at the camera along
+   * the Y axis from above it, increasing yaw angles rotate the camera
+   * counter-clockwise.  The range of the yaw angle is normalized, such
+   * that 0.0 is zero degrees/radians and 1.0 is 360 degrees or 2*PI
+   * radians.  The valid range of the fourth number is zero up to but
+   * excluding 1.0.
+   * 
+   * The fifth number is the pitch about the X axis.  An angle of zero
+   * means that the camera is level with the XZ plane.  Positive angles
+   * tilt the camera upwards, while negative angles tilt the camera
+   * downwards.  The range of the tilt angle is normalized such that 1.0
+   * is 90 degrees or PI/2 radians, looking straight up, and -1.0 is -90
+   * degrees or -PI/2 radians, looking straight down.
+   * 
+   * The sixth number is the roll about the Z axis.  An angle of zero
+   * means that the camera is level with the XZ plane.  Increasing
+   * angles tilt the camera counter-clockwise.  The range of the roll
+   * angle is normalized, such that 0.0 is zero degrees/radians and 1.0
+   * is 360 degrees or 2*PI radians.  The valid range of the sixth
+   * number is zero up to but excluding 1.0.
+   */
+  var m_cam = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+  
+  /*
+   * The error message from the last failure of loadScene(), or false
+   * if no error message stored.
+   */
+  var m_errmsg = false;
+  
+  /*
    * Flag indicating whether a scene is loaded.
    */
   var m_loaded = false;
@@ -268,12 +305,6 @@
   var m_lstyle;
   
   /*
-   * The error message from the last failure of loadScene(), or false
-   * if no error message stored.
-   */
-  var m_errmsg = false;
-  
-  /*
    * Local functions
    * ===============
    */
@@ -384,6 +415,96 @@
     } else {
       return m_errmsg;
     }
+  }
+  
+  /*
+   * Get the current camera position.
+   * 
+   * This returns an array of six values [x, y, z, yaw, pitch, roll]
+   * where (X, Y, Z) are the camera position in worldspace, yaw and roll
+   * are normalized angles in range [0.0, 1.0), and pitch is a
+   * normalized angle in range [-1.0, 1.0].  See the documentation of
+   * m_cam for further information.
+   * 
+   * Return:
+   * 
+   *   a new array copy of the current camera position
+   */
+  function getCamera() {
+    
+    var result = [];
+    
+    result.push(m_cam[0]);
+    result.push(m_cam[1]);
+    result.push(m_cam[2]);
+    result.push(m_cam[3]);
+    result.push(m_cam[4]);
+    result.push(m_cam[5]);
+    
+    return result;
+  }
+  
+  /*
+   * Set the camera position.
+   * 
+   * (X, Y, Z) are the coordinates of the camera in worldspace.  The
+   * coordinates can be any finite values.
+   * 
+   * yaw and roll are normalized angles in range [0.0, 1.0) (not
+   * including 1.0), while pitch is a normalized angle in the range
+   * [-1.0, 1.0].  See the documentation of m_cam for further
+   * information.
+   * 
+   * Parameters:
+   * 
+   *   x : number - the X coordinate
+   * 
+   *   y : number - the Y coordinate
+   * 
+   *   z : number - the Z coordinate
+   * 
+   *   yaw : number - the normalized yaw angle
+   * 
+   *   pitch : number - the normalized pitch angle
+   * 
+   *   roll : number - the normalized roll angle
+   */
+  function setCamera(x, y, z, yaw, pitch, roll) {
+    
+    var func_name = "setCamera";
+    
+    // Check parameters
+    if ((typeof x !== "number") ||
+        (typeof y !== "number") ||
+        (typeof z !== "number") ||
+        (typeof yaw !== "number") ||
+        (typeof pitch !== "number") ||
+        (typeof roll !== "number")) {
+      fault(func_name, 100);
+    }
+    
+    if ((!isFinite(x)) ||
+        (!isFinite(y)) ||
+        (!isFinite(z)) ||
+        (!isFinite(yaw)) ||
+        (!isFinite(pitch)) ||
+        (!isFinite(roll))) {
+      fault(func_name, 110);
+    }
+    
+    if ((!((yaw >= 0.0) && (yaw < 1.0))) ||
+        (!((pitch >= -1.0) && (pitch <= 1.0))) ||
+        (!((roll >= 0.0) && (roll < 1.0)))) {
+      fault(func_name, 120);
+    }
+    
+    // Update camera position
+    m_cam[0] = x;
+    m_cam[1] = y;
+    m_cam[2] = z;
+    m_cam[3] = yaw;
+    m_cam[4] = pitch;
+    m_cam[5] = roll;
   }
   
   /*
@@ -1098,6 +1219,8 @@
    */
   window.dla_main = {
     "renderScene": renderScene,
+    "getCamera": getCamera,
+    "setCamera": setCamera,
     "loadError": loadError,
     "loadScene": loadScene,
     "loadDefaultScene": loadDefaultScene
