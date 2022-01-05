@@ -1012,8 +1012,82 @@
    * Load the default scene that is used when no scene file is loaded.
    */
   function loadDefaultScene() {
-    // @@TODO:
-    console.log("loadDefaultScene");
+    
+    var func_name = "loadDefaultScene";
+    var x, z;
+    var str;
+    
+    var vtx;
+    var scene;
+    var o;
+    
+    // The first 121 vertices in the vertex array form a 10x10 grid on
+    // the XZ plane with spacing 5 units apart
+    vtx = [];
+    for(x = -25; x <= 25; x += 5) {
+      for(z = -25; z <= 25; z += 5) {
+        vtx.push(x);
+        vtx.push(0);
+        vtx.push(z);
+      }
+    }
+    
+    // The last two vertices are for the Y axis
+    vtx.push(0); vtx.push( 25); vtx.push(0);
+    vtx.push(0); vtx.push(-25); vtx.push(0);
+    
+    // Add point objects with point style zero for each node on the
+    // grid, except for the very center where the Y axis will be
+    scene = [];
+    for(x = 0; x < 11; x++) {
+      for(z = 0; z < 11; z++) {
+        if ((x === 5) && (z === 5)) {
+          continue;
+        }
+        scene.push((x * 11) + z);
+        scene.push(0xffff);
+        scene.push(0xffff);
+        scene.push(0);
+        scene.push(0);
+      }
+    }
+    
+    // Add line object with line style zero for the Y axis
+    scene.push(121);
+    scene.push(122);
+    scene.push(0xffff);
+    scene.push(0);
+    scene.push(0);
+    
+    // Create object for the default scene and add both the scene and
+    // vertex arrays to it, along with empty line and point style arrays
+    o = {};
+    o.vertex = vtx;
+    o.scene  = scene;
+    o.pstyle = [];
+    o.lstyle = [];
+    
+    // Add the point style for blue circles of 2D size 3.0
+    o.pstyle.push({
+      "shape"  : "c",
+      "size"   : 3,
+      "stroke" : 0,
+      "fill"   : 31
+    });
+    
+    // Add the line style for a green line of 2D width 2.0
+    o.lstyle.push({
+      "width" : 2.0,
+      "color" : 992
+    });
+    
+    // Encode the default scene into JSON
+    str = JSON.stringify(o);
+    
+    // Load the default scene, which shouldn't fail
+    if (!loadScene(str)) {
+      fault(func_name, 100);
+    }
   }
   
   /*
