@@ -399,6 +399,7 @@
     
     var vtx;
     var scene;
+    var rbuf;
     
     // Check parameter
     if (typeof str !== "string") {
@@ -706,6 +707,32 @@
         scene[(i * 5) + 2] = c;
         scene[(i * 5) + 3] = x;
         scene[(i * 5) + 4] = y;
+      }
+      
+      // If there is at least one radius definition, define the radius
+      // table, checking that all radii are numbers that are finite and
+      // greater than zero; otherwise, set the radius table to null
+      rbuf = null;
+      if (rcount > 0) {
+        rbuf = new Float64Array(rcount);
+        for(i = 0; i < rcount; i++) {
+          // Get the radius
+          a = data.radius[i];
+          
+          // Check that it's a number, finite, and greater than zero
+          if (typeof a !== "number") {
+            syntax("Radii must be numbers");
+          }
+          if (!isFinite(a)) {
+            syntax("Radii must be finite");
+          }
+          if (!(a > 0.0)) {
+            syntax("Radii must be greater than zero");
+          }
+          
+          // Store the radius
+          rbuf[i] = a;
+        }
       }
       
       // @@TODO:
