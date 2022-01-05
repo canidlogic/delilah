@@ -128,12 +128,13 @@
    * Only available if m_loaded.
    * 
    * This is a Uint32Array with (n / 5) elements, where n is the number
-   * of elements in m_scene.  During a rendering operation, after vertex
-   * transformation, scene objects that survive the backface cull and
-   * full near/far plane clipping will be entered into this array.  Once
-   * all the surviving objects are entered into this array, the array
-   * will be sorted so that objects will be rendered back to front
-   * according to the painter's algorithm.
+   * of elements in m_scene (in other words, the length of this array
+   * equals the total number of scene objects.  During a rendering
+   * operation, after vertex transformation, scene objects that survive
+   * the backface cull and full near/far plane clipping will be entered
+   * into this array.  Once all the surviving objects are entered into
+   * this array, the array will be sorted so that objects will be
+   * rendered back to front according to the painter's algorithm.
    * 
    * Each 32-bit integer stores a Z value in its most significant 16
    * bits and an object index in its least significant 16 bits.  The
