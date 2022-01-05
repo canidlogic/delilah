@@ -145,7 +145,7 @@
    * 
    * This is a Uint32Array with (n / 5) elements, where n is the number
    * of elements in m_scene (in other words, the length of this array
-   * equals the total number of scene objects.  During a rendering
+   * equals the total number of scene objects).  During a rendering
    * operation, after vertex transformation, scene objects that survive
    * the backface cull and full near/far plane clipping will be entered
    * into this array.  Once all the surviving objects are entered into
@@ -546,7 +546,7 @@
       // Create a new typed vertex array buffer and copy in all the
       // vertices, checking along the way that everything is a finite
       // number
-      vtx = new Float64Array(vcount);
+      vtx = new Float64Array(vcount * 3);
       for(i = 0; i < vcount; i++) {
         // Get each of the vertex elements
         a = data.vertex[i * 3];
@@ -576,7 +576,7 @@
       // Create a new typed scene object buffer and copy in all the
       // scene objects, checking their formats and references along the
       // way
-      scene = new Uint16Array(scount);
+      scene = new Uint16Array(scount * 5);
       for(i = 0; i < scount; i++) {
         // Get each of the scene object elements
         a = data.scene[i * 5];
@@ -978,7 +978,18 @@
         ls.push(o);
       }
       
-      // @@TODO:
+      // If we got here without exception, everything has been loaded
+      // successfully, so store all the data in the module and set the
+      // loaded flag
+      m_vtx = vtx;
+      m_tvx = new Float64Array(vtx.length);
+      m_rad = rbuf;
+      m_scene = scene;
+      m_paint = new Uint32Array(scount);
+      m_pstyle = ps;
+      m_lstyle = ls;
+      
+      m_loaded = true;
       
     } catch (ex) {
       // Check whether this was a syntax error
