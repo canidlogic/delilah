@@ -418,6 +418,7 @@
     var scene;
     var rbuf;
     var ps;
+    var ls;
     
     // Check parameter
     if (typeof str !== "string") {
@@ -912,6 +913,69 @@
         
         // Push the new style to the end of the point styles array
         ps.push(o);
+      }
+      
+      // If there is at least one line style defined, define the line
+      // style table, checking that line styles are valid; otherwise,
+      // set the line styles table to an empty array
+      ls = [];
+      for(i = 0; i < lscount; i++) {
+        // Get the current style object
+        o = data.lstyle[i];
+        
+        // Make sure style is an object
+        if ((typeof o != "object") || (o instanceof Array)) {
+          syntax("Line styles must be objects");
+        }
+        
+        // Must have "width" and "color" properties
+        if (!("width" in o)) {
+          syntax("All line styles must have width property");
+        }
+        if (!("color" in o)) {
+          syntax("All line styles must have color property");
+        }
+        
+        // Get the property values
+        a = o.width;
+        b = o.color;
+        
+        // Make sure both properties are numbers
+        if (typeof a !== "number") {
+          syntax("Line style width must be number");
+        }
+        if (typeof b !== "number") {
+          syntax("Line style color must be number");
+        }
+        
+        // Make sure width is a finite value that is greater than zero
+        if (!isFinite(a)) {
+          syntax("Line style width must be finite");
+        }
+        if (!(a > 0.0)) {
+          syntax("Line style width must be greater than zero");
+        }
+        
+        // Floor color and make sure it's finite
+        b = Math.floor(b);
+        if (!isFinite(b)) {
+          syntax("Line style color must be finite integer");
+        }
+        
+        // Make sure color is 15-bit
+        if ((b < 0) || (b > 0x7fff)) {
+          syntax("Line style color must be 15-bit HiColor");
+        }
+        
+        // Now create a new object and fill it with the checked and
+        // possibly adjusted properties
+        o = {};
+        
+        o.width = a;
+        o.color = b;
+        
+        // Push the new style to the end of the line styles array
+        ls.push(o);
       }
       
       // @@TODO:
