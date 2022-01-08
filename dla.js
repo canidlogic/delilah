@@ -65,6 +65,22 @@
   var m_cam = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
   
   /*
+   * The 3D projection.
+   * 
+   * The first number is the field of view angle of the vertical axis.
+   * It is normalized so that 0.0 means zero degrees/radians and 1.0
+   * means 180 degrees/PI radians.  Value must be greater than zero and
+   * less than one.
+   * 
+   * The second number is the near plane Z location.  It must be less
+   * than one divided by the tangent of half the field of view angle.
+   * 
+   * The third number is the far plane Z location.  It must be less than
+   * the near plane Z location.
+   */
+  var m_proj = [0.25, 0.0, -100.0];
+  
+  /*
    * The error message from the last failure of loadScene(), or false
    * if no error message stored.
    */
@@ -415,6 +431,77 @@
     } else {
       return m_errmsg;
     }
+  }
+  
+  /*
+   * Get the current projection.
+   * 
+   * This returns an array of three values [fov, near, far] where fov
+   * is the normalized field-of-view angle, near is the near plane Z and
+   * far is the far plane Z.  See the documentation of m_proj for
+   * further information. 
+   * 
+   * Return:
+   * 
+   *   a new array copy of the current projection
+   */
+  function getProjection() {
+    
+    var result = [];
+    
+    result.push(m_proj[0]);
+    result.push(m_proj[1]);
+    result.push(m_proj[2]);
+    
+    return result;
+  }
+  
+  /*
+   * Set the projection.
+   * 
+   * fov is the normalized field-of-view angle.  near and far are the Z
+   * locations of the near and far planes.  See the documentation of
+   * m_proj for further information.
+   * 
+   * Parameters:
+   * 
+   *   fov : number - the field of view
+   * 
+   *   near : number - the near plane Z
+   * 
+   *   far : number - the far plane Z
+   */
+  function setProjection(fov, near, far) {
+    
+    var func_name = "setProjection";
+    
+    // Check parameters
+    if ((typeof fov !== "number") ||
+        (typeof near !== "number") ||
+        (typeof far !== "number")) {
+      fault(func_name, 100);
+    }
+    
+    if ((!isFinite(fov)) ||
+        (!isFinite(near)) ||
+        (!isFinite(far))) {
+      fault(func_name, 110);
+    }
+    
+    if (!((fov > 0.0) && (fov < 1.0))) {
+      fault(func_name, 120);
+    }
+    if (!(near < 1 / Math.tan(fov * Math.PI / 2))) {
+      fault(func_name, 130);
+    }
+    if (!(far < near)) {
+      fault(func_name, 140);
+    }
+    
+    // Update projection
+    m_proj[0] = fov;
+    m_proj[1] = near;
+    m_proj[2] = far;
   }
   
   /*
@@ -1219,6 +1306,8 @@
    */
   window.dla_main = {
     "renderScene": renderScene,
+    "getProjection": getProjection,
+    "setProjection": setProjection,
     "getCamera": getCamera,
     "setCamera": setCamera,
     "loadError": loadError,
