@@ -126,6 +126,58 @@ h1 {
   text-align: left;
   padding-top: 0.5em;
 }
+
+#divProjError {
+  display: none;
+  margin-top: 2em;
+  font-weight: bold;
+  color: red;
+  padding-left: 0.5em;
+  padding-right: 0.5em;
+  padding-top: 1em;
+  padding-bottom: 1em;
+  border: medium solid;
+  background-color: white;
+}
+
+#spnProjReason {
+  font-weight: normal;
+  color: black;
+}
+
+#divProj {
+  margin-top: 1em;
+}
+
+#divProj th {
+  font-weight: normal;
+  text-align: left;
+  text-decoration: underline;
+  padding-bottom: 0.5em;
+}
+
+#divProj .lbl {
+  text-align: right;
+  font-family: monospace;
+  padding-left: 0.25em;
+  padding-right: 0.25em;
+}
+
+#divProj .suf {
+  text-align: left;
+  font-family: monospace;
+  padding-left: 0.25em;
+  padding-right: 0.25em;
+}
+
+#divProj .box input {
+  width: 5em;
+}
+
+#divProj .btn {
+  text-align: left;
+  padding-top: 0.5em;
+}
   
     </style>
     <!-- If JavaScript disabled, do not show the splash screen -->
@@ -476,6 +528,89 @@ h1 {
   }
 
   /*
+   * Given a field of view in degrees, in range [1, 179], find the limit
+   * value of the near plane, which the near plane must be LESS than.
+   *
+   * Parameters:
+   *
+   *   fov : number - the field of view in degrees
+   *
+   * Return:
+   *
+   *   limit value of the near plane
+   */
+  function computeNearLimit(fov) {
+    
+    var func_name = "computeNearLimit";
+    var lv;
+    
+    // Check that value is finite number
+    if (typeof fov !== "number") {
+      fault(func_name, 100);
+    }
+    if (!isFinite(fov)) {
+      fault(func_name, 200);
+    }
+    
+    // Check that value is in range
+    if (!((fov >= 1.0) && (fov <= 179.0))) {
+      fault(func_name, 300);
+    }
+    
+    // Compute the near plane limit, setting to zero if error
+    lv = 1 / (Math.tan((fov / 2.0) * Math.PI / 180));
+    if (!isFinite(lv)) {
+      lv = 0.0;
+    }
+    
+    // Return result
+    return lv;
+  }
+
+  /*
+   * Read the value from the FOV and if it is valid, update the near
+   * limit box with the new computed value, else set the box to empty.
+   */
+  function updateNearLimit() {
+    
+    var func_name = "updateNearLimit";
+    var eFOV, eLimit;
+    var fov, lv;
+    
+    // Get the controls
+    eFOV = document.getElementById("txtProjFOV");
+    eLimit = document.getElementById("txtProjLimit");
+    
+    if ((eFOV == null) || (eLimit == null)) {
+      fault(func_name, 100);
+    }
+    
+    // Try to parse the FOV as a float
+    fov = parseFloat(eFOV.value);
+    if (!isFinite(fov)) {
+      // Failed to parse, so clear limit box and return
+      eLimit.value = "";
+      return;
+    }
+    
+    // FOV must be in range [1, 179] to be valid
+    if (!((fov >= 1) && (fov <= 179))) {
+      // FOV out of range
+      eLimit.value = "";
+      return;
+    }
+    
+    // Compute the limit, setting to zero if computation error
+    lv = computeNearLimit(fov);
+    
+    // Convert to string with two decimal places
+    lv = lv.toFixed(2);
+    
+    // Update the limit box
+    eLimit.value = lv;
+  }
+
+  /*
    * Public functions
    * ================
    */
@@ -506,6 +641,167 @@ h1 {
     
     // Hide the element
     e.style.display = "none";
+  }
+  
+  /*
+   * Read the current projection and update the display controls with
+   * the current projection.
+   *
+   * This also hides any projection error message that may be displayed,
+   * as well as invoking updateNearLimit() at the end to update the
+   * computed box.
+   */
+  function readProj() {
+    
+    var func_name = "readProj";
+    var pdat;
+    var eFOV, eNear, eFar;
+    
+    // Dismiss any projection error
+    dismiss("divProjError");
+    
+    // Get the projection data
+    pdat = dla_main.getProjection();
+    
+    // Convert normalized angle to degrees
+    pdat[0] = pdat[0] * 180.0;
+    
+    // Clamp normalized angle to [1, 179]
+    pdat[0] = Math.min(Math.max(pdat[0], 1.0), 179.0);
+    
+    // Clamp near plane so that it is at least 0.0135 units below the
+    // limit
+    pdat[1] = Math.min(pdat[1], computeNearLimit(pdat[0]) - 0.0135);
+    
+    // Clamp far plane so that it is at least 0.0135 units below the
+    // near plane
+    pdat[2] = Math.min(pdat[2], pdat[1] - 0.0135);
+    
+    // Get the form controls
+    eFOV = document.getElementById("txtProjFOV");
+    if (eFOV == null) {
+      fault(func_name, 101);
+    }
+    
+    eNear = document.getElementById("txtProjNear");
+    if (eNear == null) {
+      fault(func_name, 102);
+    }
+    
+    eFar = document.getElementById("txtProjFar");
+    if (eFar == null) {
+      fault(func_name, 103);
+    }
+    
+    // Update each form control
+    eFOV.value  = pdat[0].toFixed(1);
+    eNear.value = pdat[1].toFixed(2);
+    eFar.value  = pdat[2].toFixed(2);
+    
+    // Update the computed near limit
+    updateNearLimit();
+  }
+  
+  /*
+   * Attempt to update the projection using the current values of the
+   * form controls.
+   *
+   * If any of the values are invalid, the projection is not changed,
+   * the projection error box is displayed with the appropriate message,
+   * and the input boxes retain their current values.
+   *
+   * If the values are valid, they are used to update the projection,
+   * the input boxes are updated with the new current position, and the
+   * canvas is re-drawn.
+   *
+   * Note that the values may change on the update due to rounding and
+   * other adjustments.
+   */
+  function writeProj() {
+    
+    var func_name = "writeProj";
+    var eFOV, eNear, eFar;
+    var fov, near, far;
+    
+    // Dismiss any current projection error
+    dismiss("divProjError");
+    
+    // Get the form controls
+    eFOV = document.getElementById("txtProjFOV");
+    if (eFOV == null) {
+      fault(func_name, 101);
+    }
+    
+    eNear = document.getElementById("txtProjNear");
+    if (eNear == null) {
+      fault(func_name, 102);
+    }
+    
+    eFar = document.getElementById("txtProjFar");
+    if (eFar == null) {
+      fault(func_name, 103);
+    }
+    
+    // Parse each value as a float
+    fov = parseFloat(eFOV.value);
+    if (!isFinite(fov)) {
+      writeTo("spnProjReason", "Can't parse FOV as a float");
+      present("divProjError");
+      return;
+    }
+    
+    near = parseFloat(eNear.value);
+    if (!isFinite(near)) {
+      writeTo("spnProjReason", "Can't parse near plane as a float");
+      present("divProjError");
+      return;
+    }
+    
+    far = parseFloat(eFar.value);
+    if (!isFinite(far)) {
+      writeTo("spnProjReason", "Can't parse far plane as a float");
+      present("divProjError");
+      return;
+    }
+    
+    // FOV must be in range [1, 179]
+    if (!((fov >= 1) && (fov <= 179))) {
+      writeTo("spnProjReason", "FOV must be in range [1.0, 179.0]");
+      present("divProjError");
+      return;
+    }
+    
+    // Near plane must be less than limit
+    if (!(near < computeNearLimit(fov))) {
+      writeTo("spnProjReason", "Near plane must be less than limit");
+      present("divProjError");
+      return;
+    }
+
+    // Far plane must be less than near plane
+    if (!(far < near)) {
+      writeTo("spnProjReason", "Far plane must be less than near");
+      present("divProjError");
+      return;
+    }
+
+    // Clamp near plane to be at least 0.0135 units under limit
+    near = Math.min(near, computeNearLimit(fov) - 0.0135);
+    
+    // Clamp far plane to be at least 0.0135 units under near
+    far = Math.min(far, near - 0.0135);
+
+    // Convert FOV to normalized angle space
+    fov = fov / 180.0;
+
+    // Update projection
+    dla_main.setProjection(fov, near, far);
+    
+    // Write the new values to the the form controls
+    readProj();
+    
+    // Re-draw the canvas
+    drawCanvas();
   }
   
   /*
@@ -751,6 +1047,14 @@ h1 {
     
     // @@TODO:
     
+    // Add an event handler to FOV box to automatically recalculate the
+    // near limit
+    e = document.getElementById("txtProjFOV");
+    if (e == null) {
+      fault(func_name, 490);
+    }
+    e.onchange = updateNearLimit;
+    
     // Add an event handler to resize box to automatically resize the
     // canvas to match the resize box value
     e = document.getElementById("optSize");
@@ -769,6 +1073,7 @@ h1 {
     
     // Update controls to reflect current state
     readCamera();
+    readProj();
     
     // Hide the splash-screen DIV and show the main DIV
     e = document.getElementById("divSplash");
@@ -795,6 +1100,8 @@ h1 {
    */
   window.dla_html = {
     "dismiss": dismiss,
+    "readProj": readProj,
+    "writeProj": writeProj,
     "readCamera": readCamera,
     "writeCamera": writeCamera,
     "handleLoad": handleLoad
@@ -900,6 +1207,59 @@ window.onload = dla_html.handleLoad;
                 onclick="dla_html.writeCamera()"/>
               <input type="button" value="Get"
                 onclick="dla_html.readCamera()"/>
+            </td>
+          </tr>
+        </table>
+      </div>
+      <div id="divProjError">
+        Failed to update projection:<br/>
+        <span id="spnProjReason">&nbsp;</span><br/>
+        <br/>
+        <a href="javascript:void dla_html.dismiss('divProjError');">
+          Dismiss
+        </a>
+      </div>
+      <div id="divProj">
+        <table>
+          <tr>
+            <th colspan="3">Projection</th>
+          </tr>
+          <tr>
+            <td class="lbl">FOV (vertical):</td>
+            <td class="box">
+              <input type="text" id="txtProjFOV" name="txtProjFOV"/>
+            </td>
+            <td class="suf">degrees</td>
+          </tr>
+          <tr>
+            <td class="lbl">Near plane limit:</td>
+            <td class="box">
+              <input type="text"
+                id="txtProjLimit" name="txtProjLimit"
+                readonly="readonly"/>
+            </td>
+            <td class="suf">(computed from FOV)</td>
+          </tr>
+          <tr>
+            <td class="lbl">Near plane:</td>
+            <td class="box">
+              <input type="text" id="txtProjNear" name="txtProjNear"/>
+            </td>
+            <td class="suf">&nbsp;</td>
+          </tr>
+          <tr>
+            <td class="lbl">Far plane:</td>
+            <td class="box">
+              <input type="text" id="txtProjFar" name="txtProjFar"/>
+            </td>
+            <td class="suf">&nbsp;</td>
+          </tr>
+          <tr>
+            <td colspan="3" class="btn">
+              <input type="button" value="Set"
+                onclick="dla_html.writeProj()"/>
+              <input type="button" value="Get"
+                onclick="dla_html.readProj()"/>
             </td>
           </tr>
         </table>
