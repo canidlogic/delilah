@@ -13,6 +13,332 @@
 (function() {
   
   /*
+   * Matrix class
+   * ============
+   */
+  
+  /*
+   * Constructor.
+   * 
+   * Invoke as "new Matrix"
+   * 
+   * The matrix is initialized as the 4x4 identity matrix.
+   */
+  function Matrix() {
+    
+    this._m = [1, 0, 0, 0,
+               0, 1, 0, 0,
+               0, 0, 1, 0,
+               0, 0, 0, 1];
+  }
+  
+  /*
+   * Report an error to console and throw an exception for a fault
+   * occurring within this Matrix class.
+   *
+   * Parameters:
+   *
+   *   func_name : string - the name of the function in this class
+   *
+   *   loc : number(int) - the location within the function
+   */
+  Matrix.prototype._fault = function(func_name, loc) {
+    
+    // If parameters not valid, set to unknown:0
+    if ((typeof func_name !== "string") || (typeof loc !== "number")) {
+      func_name = "unknown";
+      loc = 0;
+    }
+    loc = Math.floor(loc);
+    if (!isFinite(loc)) {
+      loc = 0;
+    }
+    
+    // Report error to console
+    console.log("Fault at " + func_name + ":" + String(loc) +
+                  " in dla_main:Matrix");
+    
+    // Throw exception
+    throw ("dla_main:Matrix:" + func_name + ":" + String(loc));
+  };
+  
+  /*
+   * Private function that post-multiplies another 4x4 matrix to this
+   * one and stores the result in this matrix.
+   * 
+   * The given parameter must be an array of 16 elements where each
+   * element is a Number.  This function does NOT check that all numbers
+   * are finite and does NOT check that the results of computations are
+   * all finite.
+   * 
+   * Parameters:
+   * 
+   *   b : array - the 4x4 matrix to post-multiply to this one
+   */
+  Matrix.prototype._mul = function(b) {
+    
+    var func_name = "_mul";
+    var i, j, v, result;
+    
+    // Check parameter
+    if ((typeof b !== "object") || (!(b instanceof Array))) {
+      this._fault(func_name, 100);
+    }
+    
+    if (b.length !== 16) {
+      this._fault(func_name, 101);
+    }
+    
+    for(i = 0; i < b.length; i++) {
+      if (typeof b[i] !== "number") {
+        this._fault(func_name, 102);
+      }
+    }
+    
+    // Define result array
+    result = new Array(16);
+    
+    // Compute each element of result array
+    for(i = 0; i < 4; i++) {
+      for(j = 0; j < 4; j++) {
+        v =
+          (this._m[(4 * i)    ] * b[j     ]) +
+          (this._m[(4 * i) + 1] * b[j +  4]) +
+          (this._m[(4 * i) + 2] * b[j +  8]) +
+          (this._m[(4 * i) + 3] * b[j + 12]);
+        
+        result[(4 * i) + j] = v;
+      }
+    }
+    
+    // Replace this array value with the result
+    this._m = result;
+  };
+  
+  /*
+   * Return a string representation of the matrix.
+   * 
+   * Return:
+   * 
+   *   a string representation of the matrix, for use in debugging
+   */
+  Matrix.prototype.toString = function() {
+    
+    var i;
+    var str = "[";
+    
+    for(i = 0; i < 16; i++) {
+      if (i > 0) {
+        if ((i % 4) === 0) {
+          str = str + "\n ";
+        } else {
+          str = str + " ";
+        }
+      }
+      str = str + this._m[i].toFixed(3);
+    }
+    
+    str = str + "]";
+    
+    return str;
+  };
+  
+  /*
+   * Post-multiply this matrix by a translation matrix.
+   * 
+   * tx, ty, tz are the amounts to translate each axis.
+   * 
+   * This function does NOT check that the result is finite, nor does it
+   * check that the parameters are finite.
+   * 
+   * Parameters:
+   * 
+   *   tx : number - the X translation
+   * 
+   *   ty : number - the Y translation
+   * 
+   *   tz : number - the Z translation
+   */
+  Matrix.prototype.translate = function(tx, ty, tz) {
+    
+    var func_name = "translate";
+    
+    // Check parameters
+    if ((typeof tx !== "number") ||
+        (typeof ty !== "number") ||
+        (typeof tz !== "number")) {
+      this._fault(func_name, 100);
+    }
+    
+    // Modify this matrix
+    this._mul([
+       1,  0,  0, 0,
+       0,  1,  0, 0,
+       0,  0,  1, 0,
+      tx, ty, tz, 1
+    ]);
+  };
+  
+  /*
+   * Post-multiply this matrix by a scaling matrix.
+   * 
+   * sx, sy, sz are the amounts to scale each axis.
+   * 
+   * This function does NOT check that the result is finite, nor does it
+   * check that the parameters are finite.
+   * 
+   * Parameters:
+   * 
+   *   sx : number - the X scaling multiplier
+   * 
+   *   sy : number - the Y scaling multiplier
+   * 
+   *   sz : number - the Z scaling multiplier
+   */
+  Matrix.prototype.scale = function(sx, sy, sz) {
+    
+    var func_name = "scale";
+    
+    // Check parameters
+    if ((typeof sx !== "number") ||
+        (typeof sy !== "number") ||
+        (typeof sz !== "number")) {
+      this._fault(func_name, 100);
+    }
+    
+    // Modify this matrix
+    this._mul([
+      sx,  0,  0, 0,
+       0, sy,  0, 0,
+       0,  0, sz, 0,
+       0,  0,  0, 1
+    ]);
+  };
+  
+  /*
+   * Post-multiply this matrix by a projection matrix.
+   * 
+   * d is the distance from the screen to the projection point.  It
+   * should be greater than zero.  The projection matrix will be such
+   * that the screen is positioned at Z=0 and the projection point is
+   * positioned at Z=d (so that the image is NOT flipped).
+   * 
+   * This function does NOT check that the result is finite, nor does it
+   * check that the parameter is finite or in range.
+   * 
+   * Parameters:
+   * 
+   *   d : number - the distance to the screen
+   */
+  Matrix.prototype.project = function(d) {
+    
+    var func_name = "project";
+    
+    // Check parameters
+    if (typeof d !== "number") {
+      this._fault(func_name, 100);
+    }
+    
+    // Modify this matrix
+    this._mul([
+      1, 0, 0,        0,
+      0, 1, 0,        0,
+      0, 0, 1, -(1 / d),
+      0, 0, 0,        1
+    ]);
+  };
+  
+  /*
+   * Post-multiply this matrix by a rotation matrix about the X axis.
+   * 
+   * r is the angle of rotation, in radians.
+   * 
+   * This function does NOT check that the result is finite, nor does it
+   * check that the parameter is finite.
+   * 
+   * Parameters:
+   * 
+   *   r : number - the radians of rotation
+   */
+  Matrix.prototype.rotateX = function(r) {
+    
+    var func_name = "rotateX";
+    
+    // Check parameters
+    if (typeof r !== "number") {
+      this._fault(func_name, 100);
+    }
+    
+    // Modify this matrix
+    this._mul([
+      1,              0,           0, 0,
+      0,   Math.cos(r) , Math.sin(r), 0,
+      0, -(Math.sin(r)), Math.cos(r), 0,
+      0,              0,           0, 1
+    ]);
+  };
+  
+  /*
+   * Post-multiply this matrix by a rotation matrix about the Y axis.
+   * 
+   * r is the angle of rotation, in radians.
+   * 
+   * This function does NOT check that the result is finite, nor does it
+   * check that the parameter is finite.
+   * 
+   * Parameters:
+   * 
+   *   r : number - the radians of rotation
+   */
+  Matrix.prototype.rotateY = function(r) {
+    
+    var func_name = "rotateY";
+    
+    // Check parameters
+    if (typeof r !== "number") {
+      this._fault(func_name, 100);
+    }
+    
+    // Modify this matrix
+    this._mul([
+      Math.cos(r), 0, -(Math.sin(r)), 0,
+                0, 1,              0, 0,
+      Math.sin(r), 0,   Math.cos(r) , 0,
+                0, 0,              0, 1
+    ]);
+  };
+  
+  /*
+   * Post-multiply this matrix by a rotation matrix about the Z axis.
+   * 
+   * r is the angle of rotation, in radians.
+   * 
+   * This function does NOT check that the result is finite, nor does it
+   * check that the parameter is finite.
+   * 
+   * Parameters:
+   * 
+   *   r : number - the radians of rotation
+   */
+  Matrix.prototype.rotateZ = function(r) {
+    
+    var func_name = "rotateZ";
+    
+    // Check parameters
+    if (typeof r !== "number") {
+      this._fault(func_name, 100);
+    }
+    
+    // Modify this matrix
+    this._mul([
+        Math.cos(r) , Math.sin(r), 0, 0,
+      -(Math.sin(r)), Math.cos(r), 0, 0,
+                   0,           0, 1, 0,
+                   0,           0, 0, 1
+    ]);
+  };
+  
+  /*
    * Constants
    * =========
    */
