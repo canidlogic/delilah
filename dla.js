@@ -144,6 +144,127 @@
   };
   
   /*
+   * Check whether all elements currently in the matrix have finite
+   * values.
+   * 
+   * Return:
+   * 
+   *   true if everything is finite, false if not
+   */
+  Matrix.prototype.checkFinite = function() {
+    
+    var i;
+    var result = true;
+    
+    for(i = 0; i < 16; i++) {
+      if (!isFinite(this._m[i])) {
+        result = false;
+        break;
+      }
+    }
+    
+    return result;
+  };
+  
+  /*
+   * Given an array object with three elements storing X, Y, Z
+   * coordinates, transform it by interpreting it as a row vector and
+   * post-multiplying it by the current matrix value.
+   * 
+   * The matrix value is not changed by this function.
+   * 
+   * When multiplied through, the array object is assumed to have a
+   * fourth element that has a value of 1.  After multiplication, the
+   * first three elements are divided by the fourth element so that the
+   * fourth element is once again one.  The client never sees this
+   * fourth element, and the passed array reference always remains to an
+   * array of three elements.
+   * 
+   * If the fourth element after multiplication ends up as zero, all
+   * three coordinates are set to zero in the result.
+   * 
+   * If computation results in any non-finite coordinates, the
+   * non-finite coordinates are replaced by zero in the result.  This
+   * way, the transformed array always contains finite values, even if
+   * it didn't have finite values going into this function.
+   * 
+   * Parameters:
+   * 
+   *   pa : Array - array of three numbers representing XYZ coordinates
+   *   that will be transformed in-place by post-multiplication by this
+   *   matrix
+   */
+  Matrix.prototype.process = function(pa) {
+    
+    var func_name = "process";
+    var a, b, c, d;
+    
+    // Check parameter
+    if ((typeof pa !== "object") || (!(pa instanceof Array))) {
+      this._fault(func_name, 100);
+    }
+    if (pa.length !== 3) {
+      this._fault(func_name, 101);
+    }
+    if ((typeof pa[0] !== "number") ||
+        (typeof pa[1] !== "number") ||
+        (typeof pa[2] !== "number")) {
+      this._fault(func_name, 102);
+    }
+    
+    // Compute the four coordinates of the result
+    a = (pa[0] * this._m[ 0]) +
+        (pa[1] * this._m[ 4]) +
+        (pa[2] * this._m[ 8]) +
+                 this._m[12];
+    
+    b = (pa[0] * this._m[ 1]) +
+        (pa[1] * this._m[ 5]) +
+        (pa[2] * this._m[ 9]) +
+                 this._m[13];
+    
+    c = (pa[0] * this._m[ 2]) +
+        (pa[1] * this._m[ 6]) +
+        (pa[2] * this._m[10]) +
+                 this._m[14];
+    
+    d = (pa[0] * this._m[ 3]) +
+        (pa[1] * this._m[ 7]) +
+        (pa[2] * this._m[11]) +
+                 this._m[15];
+    
+    // Handle the fourth coordinate if it is not one
+    if (d == 0.0) {
+      // Division by zero would result, so set to (0, 0, 0)
+      a = 0.0;
+      b = 0.0;
+      c = 0.0;
+      
+    } else if (d != 1.0) {
+      // Divide by d
+      a = a / d;
+      b = b / d;
+      c = c / d;
+    }
+    
+    // Change non-finite values to zero
+    if (!isFinite(a)) {
+      a = 0.0;
+    }
+    if (!isFinite(b)) {
+      b = 0.0;
+    }
+    if (!isFinite(c)) {
+      c = 0.0;
+    }
+    
+    // Update array
+    pa[0] = a;
+    pa[1] = b;
+    pa[2] = c;
+  };
+  
+  /*
    * Post-multiply this matrix by a translation matrix.
    * 
    * tx, ty, tz are the amounts to translate each axis.
