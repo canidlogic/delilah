@@ -864,6 +864,9 @@
   function renderScene(rc, w, h) {
     
     var func_name = "renderScene";
+    var i, j, p, z;
+    var a, b, c;
+    var mtxCam;
     
     // Check parameters and convert to integers
     if ((typeof rc !== "object") ||
@@ -893,7 +896,212 @@
                     ", " + m_bgcolor[2].toString(10) + ")";
     rc.fillRect(0, 0, w, h);
     
-    // @@TODO:
+    // Only proceed further if scene is loaded
+    if (m_loaded) {
+      
+      // Define the matrix that will transform world space to camera
+      // space, where the camera is perfectly level at the origin
+      // looking exactly down towards negative Z infinity (right-handed)
+      mtxCam = new Matrix;
+      
+      // First step is to translate so that camera is at origin
+      mtxCam.translate(-(m_cam[0]), -(m_cam[1]), -(m_cam[2]));
+      
+      // Next, undo the yaw by rotating around Y axis
+      mtxCam.rotateY(-(m_cam[3] * Math.PI * 2));
+      
+      // Next, undo the pitch by rotating around the X axis
+      mtxCam.rotateX(-(m_cam[4] * Math.PI / 2));
+      
+      // Finally, undo the roll by rotating around the Z axis
+      mtxCam.rotateZ(-(m_cam[5] * Math.PI * 2));
+      
+      // If matrix is not finite, stop
+      if (!mtxCam.checkFinite()) {
+        return;
+      }
+      
+      // Transform all vertices in the vertex buffer
+      j = m_vtx.length;
+      p = new Array(3);
+      for(i = 0; i < j; i = i + 3) {
+        p[0] = m_vtx[i    ];
+        p[1] = m_vtx[i + 1];
+        p[2] = m_vtx[i + 2];
+        
+        mtxCam.process(p);
+        
+        m_tvx[i    ] = p[0];
+        m_tvx[i + 1] = p[1];
+        m_tvx[i + 2] = p[2];
+      }
+      
+      // Fill the paint sorting list by going through all scene objects,
+      // applying backface cull to triangles and then near/far full
+      // plane clipping to all objects, and either discarding each scene
+      // object by writing the special 0xffffffff to the m_paint list,
+      // or adding the object with the quantized centroid Z clamped to
+      // normalized range in the most significant word and the index of
+      // the object in the least significant word
+      j = m_scene.length / 5;
+      for(i = 0; i < j; i++) {
+        
+        // Get this scene object vertices
+        a = m_scene[(i * 5)    ];
+        b = m_scene[(i * 5) + 1];
+        c = m_scene[(i * 5) + 2];
+        
+        // Handle different types of objects
+        if ((b !== 0xffff) && (c !== 0xffff)) {
+          // Triangle -- check Z direction of cross product of two edges
+          // first (a1*b2 - a2*b1)
+          if ((m_tvx[(3 * a)] * m_tvx[(3 * b) + 1]) -
+                (m_tvx[(3 * a) + 1] * m_tvx[(3 * b)]) > 0) {
+            // Not backface-culled, so next check whether all Z
+            // coordinates are greater than or equal to near plane
+            if ((m_tvx[(3 * a) + 2] >= m_proj[1]) &&
+                (m_tvx[(3 * b) + 2] >= m_proj[1]) &&
+                (m_tvx[(3 * c) + 2] >= m_proj[1])) {
+              // Everything is before near plane, so cull
+              m_paint[i] = 0xffffffff;
+              
+            } else {
+              // Not culled by near plane, so next check whether all Z
+              // coordinates are less than or equal to far plane
+              if ((m_tvx[(3 * a) + 2] <= m_proj[2]) &&
+                  (m_tvx[(3 * b) + 2] <= m_proj[2]) &&
+                  (m_tvx[(3 * c) + 2] <= m_proj[2])) {
+                // Everything is after far plane, so cull
+                m_paint[i] = 0xffffffff;
+                
+              } else {
+                // Triangle survived all culling, so we need to compute
+                // the Z centroid next
+                z = (m_tvx[(3 * a) + 2] +
+                      m_tvx[(3 * b) + 2] +
+                      m_tvx[(3 * c) + 2])
+                        / 3.0;
+                
+                // Set to zero if not finite
+                if (!isFinite(z)) {
+                  z = 0.0;
+                }
+                
+                // Clamp Z centroid to near/far plane range
+                z = Math.min(Math.max(z, m_proj[2]), m_proj[1]);
+                
+                // Normalize centroid so that 1.0 is near plane and 0.0
+                // is far plane
+                z = (z - m_proj[2]) / (m_proj[1] - m_proj[2]);
+                
+                // Quantize to 16-bit integer space and clamp
+                z = Math.floor(z * 65535.0);
+                z = Math.min(Math.max(z, 0), 65535);
+                
+                // Write quantized Z and scene object index to paint
+                // sorter
+                m_paint[i] = (z << 16) | i;
+              }
+            }
+            
+          } else {
+            // Backface culled
+            m_paint[i] = 0xffffffff;
+          }
+        
+        } else if ((b !== 0xffff) && (c === 0xffff)) {
+          // Line -- check whether both Z coordinates are greater than
+          // or equal to near plane
+          if ((m_tvx[(3 * a) + 2] >= m_proj[1]) &&
+              (m_tvx[(3 * b) + 2] >= m_proj[1])) {
+            // Everything in front of near plane, so cull
+            m_paint[i] = 0xffffffff;
+            
+          } else {
+            // Not culled by near plane, so next check whether both Z
+            // coordinates are less than or equal to far plane
+            if ((m_tvx[(3 * a) + 2] <= m_proj[2]) &&
+                (m_tvx[(3 * b) + 2] <= m_proj[2])) {
+              // Everything behind far plane, so cull
+              m_paint[i] = 0xffffffff;
+              
+            } else {
+              // Line not culled, so we need to compute Z centroid next
+              z = (m_tvx[(3 * a) + 2] +
+                      m_tvx[(3 * b) + 2])
+                        / 2.0;
+              
+              // Set to zero if not finite
+              if (!isFinite(z)) {
+                z = 0.0;
+              }
+              
+              // Clamp Z centroid to near/far plane range
+              z = Math.min(Math.max(z, m_proj[2]), m_proj[1]);
+              
+              // Normalize centroid so that 1.0 is near plane and 0.0
+              // is far plane
+              z = (z - m_proj[2]) / (m_proj[1] - m_proj[2]);
+              
+              // Quantize to 16-bit integer space and clamp
+              z = Math.floor(z * 65535.0);
+              z = Math.min(Math.max(z, 0), 65535);
+              
+              // Write quantized Z and scene object index to paint
+              // sorter
+              m_paint[i] = (z << 16) | i;
+            }
+          }
+        
+        } else {
+          // Point or sphere -- check whether origin Z coordinate is
+          // greater than or equal to near plane
+          if (m_tvx[(3 * a) + 2] >= m_proj[1]) {
+            // Point/sphere origin is in front of near plane, so cull
+            m_paint[i] = 0xffffffff;
+            
+          } else {
+            // Not culled by near plane, so next check whether it is
+            // behind far plane
+            if (m_tvx[(3 * a) + 2] <= m_proj[2]) {
+              // Point/sphere origin is behind far plane, so cull
+              m_paint[i] = 0xffffffff;
+              
+            } else {
+              // Not culled, so use Z coordinate
+              z = m_tvx[(3 * a) + 2];
+              
+              // Set to zero if not finite
+              if (!isFinite(z)) {
+                z = 0.0;
+              }
+              
+              // Clamp Z centroid to near/far plane range
+              z = Math.min(Math.max(z, m_proj[2]), m_proj[1]);
+              
+              // Normalize centroid so that 1.0 is near plane and 0.0
+              // is far plane
+              z = (z - m_proj[2]) / (m_proj[1] - m_proj[2]);
+              
+              // Quantize to 16-bit integer space and clamp
+              z = Math.floor(z * 65535.0);
+              z = Math.min(Math.max(z, 0), 65535);
+              
+              // Write quantized Z and scene object index to paint
+              // sorter
+              m_paint[i] = (z << 16) | i;
+            }
+          }
+        }
+      }
+      
+      // Sort paint buffer in ascending numerical order, which puts the
+      // scene elements from back to front by Z centroids, and the end
+      // of the paint array is filled in with 0xffffffff
+      m_paint.sort();
+      
+      // @@TODO:
+    }
   }
   
   /*
