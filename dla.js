@@ -34,6 +34,17 @@
    */
   
   /*
+   * The background color.
+   * 
+   * This is what the canvas is cleared to before any scene objects are
+   * rendered.
+   * 
+   * This is an array of three integers in range [0, 255] that represent
+   * the R G B color channels.
+   */
+  var m_bgcolor = [128, 128, 128];
+  
+  /*
    * The 3D position of the camera.
    * 
    * The first three numbers are the (X, Y, Z) coordinate of the camera
@@ -431,6 +442,77 @@
     } else {
       return m_errmsg;
     }
+  }
+  
+  /*
+   * Get the current background color.
+   * 
+   * This returns an array of three values R G B each in range [0, 255].
+   * 
+   * Return:
+   * 
+   *   a new array copy of the current background color
+   */
+  function getBGColor() {
+    
+    var result = [];
+    
+    result.push(m_bgcolor[0]);
+    result.push(m_bgcolor[1]);
+    result.push(m_bgcolor[2]);
+    
+    return result;
+  }
+  
+  /*
+   * Set the background color.
+   * 
+   * The given values are integer R G B color channel values, each of
+   * which must be in range [0, 255].
+   * 
+   * Parameters:
+   * 
+   *   r : integer - the red channel
+   * 
+   *   g : integer - the green channel
+   * 
+   *   b : integer - the blue channel
+   */
+  function setBGColor(r, g, b) {
+    
+    var func_name = "setBGColor";
+    
+    // Check parameters and convert to integer
+    if ((typeof r !== "number") ||
+        (typeof g !== "number") ||
+        (typeof b !== "number")) {
+      fault(func_name, 100);
+    }
+    
+    r = Math.floor(r);
+    g = Math.floor(g);
+    b = Math.floor(b);
+    
+    if ((!isFinite(r)) ||
+        (!isFinite(g)) ||
+        (!isFinite(b))) {
+      fault(func_name, 110);
+    }
+    
+    if (!((r >= 0) && (r <= 255))) {
+      fault(func_name, 120);
+    }
+    if (!((g >= 0) && (g <= 255))) {
+      fault(func_name, 121);
+    }
+    if (!((b >= 0) && (b <= 255))) {
+      fault(func_name, 122);
+    }
+    
+    // Update projection
+    m_bgcolor[0] = r;
+    m_bgcolor[1] = g;
+    m_bgcolor[2] = b;
   }
   
   /*
@@ -1306,6 +1388,8 @@
    */
   window.dla_main = {
     "renderScene": renderScene,
+    "getBGColor": getBGColor,
+    "setBGColor": setBGColor,
     "getProjection": getProjection,
     "setProjection": setProjection,
     "getCamera": getCamera,
