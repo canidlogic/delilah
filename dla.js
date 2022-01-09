@@ -42,7 +42,7 @@
    * This is an array of three integers in range [0, 255] that represent
    * the R G B color channels.
    */
-  var m_bgcolor = [128, 128, 128];
+  var m_bgcolor = [170, 170, 170];
   
   /*
    * The 3D position of the camera.
@@ -415,9 +415,38 @@
    *   h : integer - the height in pixels of the canvas
    */
   function renderScene(rc, w, h) {
-    // @@TODO:
-    rc.fillStyle = "rgb(128, 128, 255)";
+    
+    var func_name = "renderScene";
+    
+    // Check parameters and convert to integers
+    if ((typeof rc !== "object") ||
+        (typeof w !== "number") ||
+        (typeof h !== "number")) {
+      fault(func_name, 100);
+    }
+    
+    if (!(rc instanceof CanvasRenderingContext2D)) {
+      fault(func_name, 101);
+    }
+    
+    w = Math.floor(w);
+    h = Math.floor(h);
+    
+    if ((!isFinite(w)) || (!isFinite(h))) {
+      fault(func_name, 102);
+    }
+    
+    if ((w < 2) || (h < 2)) {
+      fault(func_name, 103);
+    }
+    
+    // First thing is always to clear the canvas to the background color
+    rc.fillStyle = "rgb(" + m_bgcolor[0].toString(10) + 
+                    ", " + m_bgcolor[1].toString(10) +
+                    ", " + m_bgcolor[2].toString(10) + ")";
     rc.fillRect(0, 0, w, h);
+    
+    // @@TODO:
   }
   
   /*
