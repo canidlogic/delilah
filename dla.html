@@ -178,7 +178,59 @@ h1 {
   text-align: left;
   padding-top: 0.5em;
 }
-  
+
+#divBGError {
+  display: none;
+  margin-top: 2em;
+  font-weight: bold;
+  color: red;
+  padding-left: 0.5em;
+  padding-right: 0.5em;
+  padding-top: 1em;
+  padding-bottom: 1em;
+  border: medium solid;
+  background-color: white;
+}
+
+#spnBGReason {
+  font-weight: normal;
+  color: black;
+}
+
+#divBG {
+  margin-top: 1em;
+}
+
+#divBG th {
+  font-weight: normal;
+  text-align: left;
+  text-decoration: underline;
+  padding-bottom: 0.5em;
+}
+
+#divBG .lbl {
+  text-align: right;
+  font-family: monospace;
+  padding-left: 0.25em;
+  padding-right: 0.25em;
+}
+
+#divBG .suf {
+  text-align: left;
+  font-family: monospace;
+  padding-left: 0.25em;
+  padding-right: 0.25em;
+}
+
+#divBG .box input {
+  width: 5em;
+}
+
+#divBG .btn {
+  text-align: left;
+  padding-top: 0.5em;
+}
+
     </style>
     <!-- If JavaScript disabled, do not show the splash screen -->
     <noscript>
@@ -644,6 +696,113 @@ h1 {
   }
   
   /*
+   * Read the current background color and update the display controls
+   * with the current background.
+   *
+   * This also hides any background color error message that may be
+   * displayed.
+   */
+  function readBG() {
+  
+    var func_name = "readBG";
+    var a, rgb;
+    var eBG;
+    
+    // Dismiss any background color error
+    dismiss("divBGError");
+    
+    // Get the background color as an array of three values
+    a = dla_main.getBGColor();
+    
+    // Pack color channels into single RGB value
+    rgb = (a[0] << 16) | (a[1] << 8) | a[2];
+    
+    // Convert to base-16
+    rgb = rgb.toString(16);
+    
+    // Zero-pad up to six characters
+    while (rgb.length < 6) {
+      rgb = "0" + rgb;
+    }
+    
+    // Get the form control
+    eBG = document.getElementById("txtBGColor");
+    if (eBG == null) {
+      fault(func_name, 101);
+    }
+    
+    // Update the form control
+    eBG.value = rgb;
+  }
+  
+  /*
+   * Attempt to update the background color using the current values of
+   * the form controls.
+   *
+   * If the input value is invalid, the background color is not changed,
+   * the background color error box is displayed, and the input box
+   * retains its current value.
+   *
+   * If the value is valid, it is used to update the background color,
+   * the input box is updated with the new current background color, and
+   * the canvas is re-drawn.
+   *
+   * Note that the value may change on the update due to normalization
+   * of the color value.
+   */
+  function writeBG() {
+    
+    var func_name = "writeBG";
+    var eBG;
+    var rgb, r, g, b;
+    
+    // Dismiss any current background color error
+    dismiss("divBGError");
+    
+    // Get the form controls
+    eBG = document.getElementById("txtBGColor");
+    if (eBG == null) {
+      fault(func_name, 101);
+    }
+    
+    // Get the string value and trim
+    rgb = eBG.value.trim();
+    
+    // Must be exactly six characters after trimming
+    if (rgb.length !== 6) {
+      present("divBGError");
+      return;
+    }
+    
+    // Parse the value as a base-16 integer
+    rgb = parseInt(rgb, 16);
+    if (!isFinite(rgb)) {
+      present("divBGError");
+      return;
+    }
+
+    // Value must be in range [0, 0xffffff]
+    if (!((rgb >= 0) && (rgb <= 0xffffff))) {
+      present("divBGError");
+      return;
+    }
+    
+    // Get the R G B channel values
+    r = rgb >> 16;
+    g = (rgb >> 8) & 0xff;
+    b = rgb & 0xff;
+
+    // Update background color
+    dla_main.setBGColor(r, g, b);
+    
+    // Write the new value to the the form control
+    readBG();
+    
+    // Re-draw the canvas
+    drawCanvas();
+  }
+  
+  /*
    * Read the current projection and update the display controls with
    * the current projection.
    *
@@ -1045,8 +1204,6 @@ h1 {
     // Load the default scene
     dla_main.loadDefaultScene();
     
-    // @@TODO:
-    
     // Add an event handler to FOV box to automatically recalculate the
     // near limit
     e = document.getElementById("txtProjFOV");
@@ -1074,6 +1231,7 @@ h1 {
     // Update controls to reflect current state
     readCamera();
     readProj();
+    readBG();
     
     // Hide the splash-screen DIV and show the main DIV
     e = document.getElementById("divSplash");
@@ -1100,6 +1258,8 @@ h1 {
    */
   window.dla_html = {
     "dismiss": dismiss,
+    "readBG": readBG,
+    "writeBG": writeBG,
     "readProj": readProj,
     "writeProj": writeProj,
     "readCamera": readCamera,
@@ -1260,6 +1420,37 @@ window.onload = dla_html.handleLoad;
                 onclick="dla_html.writeProj()"/>
               <input type="button" value="Get"
                 onclick="dla_html.readProj()"/>
+            </td>
+          </tr>
+        </table>
+      </div>
+      <div id="divBGError">
+        Failed to update background color:<br/>
+        <span id="spnBGReason">Color must be exactly six base-16 digits
+        in RRGGBB order</span><br/>
+        <br/>
+        <a href="javascript:void dla_html.dismiss('divBGError');">
+          Dismiss
+        </a>
+      </div>
+      <div id="divBG">
+        <table>
+          <tr>
+            <th colspan="3">Background color</th>
+          </tr>
+          <tr>
+            <td class="lbl">Hex code:</td>
+            <td class="box">
+              <input type="text" id="txtBGColor" name="txtBGColor"/>
+            </td>
+            <td class="suf">(RRGGBB)</td>
+          </tr>
+          <tr>
+            <td colspan="3" class="btn">
+              <input type="button" value="Set"
+                onclick="dla_html.writeBG()"/>
+              <input type="button" value="Get"
+                onclick="dla_html.readBG()"/>
             </td>
           </tr>
         </table>
