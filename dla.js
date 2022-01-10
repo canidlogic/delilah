@@ -954,6 +954,168 @@
   }
   
   /*
+   * Draw a point.
+   * 
+   * rc is the rendering context to draw the point into.  (x, y) are the
+   * screen coordinates of the point.
+   * 
+   * psi is the point style, which is an index into the point style
+   * array.
+   * 
+   * CAUTION:  For speed, this function performs no checking of
+   * parameters or state.
+   * 
+   * CAUTION: Fill style, stroke style, line width, and current path in
+   * the rendering context are altered.
+   * 
+   * CAUTION: Assumes settings for lineCap, lineJoin, and miterLimit are
+   * already set correctly.
+   * 
+   * Parameters:
+   * 
+   *   rc : CanvasRenderingContext2D - the 2D rendering context
+   * 
+   *   x : the X coordinate
+   * 
+   *   y : the Y coordinate
+   * 
+   *   psi : the point style index
+   */
+  function drawPoint(rc, x, y, psi) {
+    
+    var func_name = "drawPoint";
+    var sz, sh, k, rgb, r, g, b;
+    
+    // Get point style object
+    psi = m_pstyle[psi];
+    
+    // Get the size of the bounding box edge and half of it
+    sz = psi.size;
+    k = sz / 2.0;
+    
+    // Define new path and add the appropriate shape to the path
+    rc.beginPath();
+    sh = psi.shape;
+    if (sh === "c") {
+      // Circle
+      k = sz / 2.0;
+      rc.arc(x, y, k, 0, 2 * Math.PI);
+      
+    } else if (sh === "s") {
+      // Square
+      k = sz / 2.0;
+      rc.rect(x - k, y - k, sz, sz);
+      
+    } else if (sh === "m") {
+      // Diamond
+      rc.moveTo(x - k, y);
+      rc.lineTo(x, y - k);
+      rc.lineTo(x + k, y);
+      rc.lineTo(x, y + k);
+      rc.closePath();
+      
+    } else if (sh === "u") {
+      // Triangle-up
+      rc.moveTo(x - k, y + k);
+      rc.lineTo(x, y - k);
+      rc.lineTo(x + k, y + k);
+      rc.closePath();
+      
+    } else if (sh === "d") {
+      // Triangle-down
+      rc.moveTo(x - k, y - k);
+      rc.lineTo(x, y + k);
+      rc.lineTo(x + k, y - k);
+      rc.closePath();
+      
+    } else if (sh === "l") {
+      // Triangle-left
+      rc.moveTo(x - k, y);
+      rc.lineTo(x + k, y - k);
+      rc.lineTo(x + k, y + k);
+      rc.closePath();
+      
+    } else if (sh === "r") {
+      // Triangle-right
+      rc.moveTo(x + k, y);
+      rc.lineTo(x - k, y - k);
+      rc.lineTo(x - k, y + k);
+      rc.closePath();
+      
+    } else if (sh === "p") {
+      // Plus
+      rc.moveTo(x, y - k);
+      rc.lineTo(x, y + k);
+      rc.moveTo(x - k, y);
+      rc.lineTo(x + k, y);
+      
+    } else if (sh === "x") {
+      // X
+      rc.moveTo(x - k, y - k);
+      rc.lineTo(x + k, y + k);
+      rc.moveTo(x - k, y + k);
+      rc.lineTo(x + k, y - k);
+      
+    } else {
+      fault(func_name, 200);
+    }
+    
+    // If this is a fillable shape, do fill if requested by style
+    if (FILL_SHAPES.indexOf(sh) >= 0) {
+      rgb = psi.fill;
+      if (rgb !== 0xffff) {
+        // Extract 5-bit channels
+        r = (rgb >> 10);
+        g = (rgb >> 5) & 0x1f;
+        b = rgb & 0x1f;
+        
+        // Expand 5-bit channels to 8-bit by shifting left and
+        // duplicating three most significant bits in least significant
+        r = (r << 3) | (r >> 2);
+        g = (g << 3) | (g >> 2);
+        b = (b << 3) | (b >> 2);
+        
+        // Set fill color
+        rc.fillStyle = "rgb(" + r.toString(10) +
+                        ", " + g.toString(10) +
+                        ", " + b.toString(10) + ")";
+        
+        // Fill the shape
+        rc.fill();
+      }
+    }
+    
+    // If stroke width is greater than zero, stroke the shape
+    sz = psi.stroke;
+    if (sz > 0.0) {
+      // Get stroke color
+      rgb = psi.ink;
+      
+      // Extract 5-bit channels
+      r = (rgb >> 10);
+      g = (rgb >> 5) & 0x1f;
+      b = rgb & 0x1f;
+      
+      // Expand 5-bit channels to 8-bit by shifting left and duplicating
+      // three most significant bits in least significant
+      r = (r << 3) | (r >> 2);
+      g = (g << 3) | (g >> 2);
+      b = (b << 3) | (b >> 2);
+      
+      // Set stroke color
+      rc.strokeStyle = "rgb(" + r.toString(10) +
+                        ", " + g.toString(10) +
+                        ", " + b.toString(10) + ")";
+      
+      // Set line width
+      rc.lineWidth = sz;
+      
+      // Stroke the shape
+      rc.stroke();
+    }
+  }
+  
+  /*
    * Public functions
    * ================
    */
@@ -1309,9 +1471,9 @@
           }
         
         } else {
-          // Point
-          // @@TODO:
-          console.log("point " + a);
+          // Point -- draw to screen
+          bi = a * 3;
+          drawPoint(rc, m_pvx[bi], m_pvx[bi + 1], e);
         }
       }
     }
