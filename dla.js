@@ -575,6 +575,17 @@
   var m_tvx;
   
   /*
+   * Projected vertex buffer.
+   * 
+   * Only available if m_loaded.
+   * 
+   * This is a Float64Array with the same number of elements as m_tvx.
+   * During a rendering operation, this will be filled with projection
+   * transformed vertices.
+   */
+  var m_pvx;
+  
+  /*
    * The radius buffer.
    * 
    * Only available if m_loaded.
@@ -869,7 +880,7 @@
     var z1, z2, z3;
     var e1x, e1y, e2x, e2y;
     var near, far, extent;
-    var mtxCam;
+    var mtxCam, mtxProj;
     
     // Check parameters and convert to integers
     if ((typeof rc !== "object") ||
@@ -924,7 +935,22 @@
         return;
       }
       
-      // Transform all vertices in the vertex buffer
+      // Define the matrix that will transform camera space into
+      // projected screen space
+      mtxProj = new Matrix;
+      
+      // First step is the projection matrix
+      mtxProj.project(1 / Math.tan(m_proj[0] * Math.PI / 2));
+      
+      // Next scale X and Y by half the height to get to screen
+      // dimensions, and also flip Y
+      mtxProj.scale(h / 2, -(h / 2), 1);
+      
+      // Finally, adjust origin so origin is top-left of screen
+      mtxProj.translate(-(w / 2), -(h / 2), 0);
+      
+      // Transform all vertices in the vertex buffer both into the
+      // camera-transformed buffer m_tvx and the projected buffer m_pvx
       j = m_vtx.length;
       p = new Array(3);
       for(i = 0; i < j; i = i + 3) {
@@ -937,6 +963,12 @@
         m_tvx[i    ] = p[0];
         m_tvx[i + 1] = p[1];
         m_tvx[i + 2] = p[2];
+        
+        mtxProj.process(p);
+        
+        m_pvx[i    ] = p[0];
+        m_pvx[i + 1] = p[1];
+        m_pvx[i + 2] = p[2];
       }
       
       // Cache near and far clipping planes and distance between
@@ -1966,6 +1998,7 @@
       // loaded flag
       m_vtx = vtx;
       m_tvx = new Float64Array(vtx.length);
+      m_pvx = new Float64Array(vtx.length);
       m_rad = rbuf;
       m_scene = scene;
       m_paint = new Uint32Array(scount);
