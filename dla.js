@@ -865,7 +865,10 @@
     
     var func_name = "renderScene";
     var i, j, p, z;
-    var a, b, c;
+    var a, b, c, bi;
+    var z1, z2, z3;
+    var e1x, e1y, e2x, e2y;
+    var near, far, extent;
     var mtxCam;
     
     // Check parameters and convert to integers
@@ -936,6 +939,11 @@
         m_tvx[i + 2] = p[2];
       }
       
+      // Cache near and far clipping planes and distance between
+      near   = m_proj[1];
+      far    = m_proj[2];
+      extent = near - far;
+      
       // Fill the paint sorting list by going through all scene objects,
       // applying backface cull to triangles and then near/far full
       // plane clipping to all objects, and either discarding each scene
@@ -947,40 +955,46 @@
       for(i = 0; i < j; i++) {
         
         // Get this scene object vertices
-        a = m_scene[(i * 5)    ];
-        b = m_scene[(i * 5) + 1];
-        c = m_scene[(i * 5) + 2];
+        bi = i * 5;
+        a = m_scene[bi    ];
+        b = m_scene[bi + 1];
+        c = m_scene[bi + 2];
         
         // Handle different types of objects
         if ((b !== 0xffff) && (c !== 0xffff)) {
-          // Triangle -- check Z direction of cross product of two edges
-          // first (a1*b2 - a2*b1)
-          if ((m_tvx[(3 * a)] * m_tvx[(3 * b) + 1]) -
-                (m_tvx[(3 * a) + 1] * m_tvx[(3 * b)]) > 0) {
+          // Triangle -- get all three Z coordinates
+          z1 = m_tvx[(3 * a) + 2];
+          z2 = m_tvx[(3 * b) + 2];
+          z3 = m_tvx[(3 * c) + 2];
+          
+          // Compute X and Y of first edge (V2 -> V1) and also of second
+          // edge (V2 -> V3)
+          e1x = m_tvx[(3 * a)    ] - m_tvx[(3 * b)    ];
+          e1y = m_tvx[(3 * a) + 1] - m_tvx[(3 * b) + 1];
+          
+          e2x = m_tvx[(3 * c)    ] - m_tvx[(3 * b)    ];
+          e2y = m_tvx[(3 * c) + 1] - m_tvx[(3 * b) + 1];
+          
+          // Check Z direction of cross product of two edges first
+          // (a1*b2 - a2*b1)
+          if ((e1x * e2y) - (e1y * e2x) > 0) {
             // Not backface-culled, so next check whether all Z
             // coordinates are greater than or equal to near plane
-            if ((m_tvx[(3 * a) + 2] >= m_proj[1]) &&
-                (m_tvx[(3 * b) + 2] >= m_proj[1]) &&
-                (m_tvx[(3 * c) + 2] >= m_proj[1])) {
+            if ((z1 >= near) && (z2 >= near) && (z3 >= near)) {
               // Everything is before near plane, so cull
               m_paint[i] = 0xffffffff;
               
             } else {
               // Not culled by near plane, so next check whether all Z
               // coordinates are less than or equal to far plane
-              if ((m_tvx[(3 * a) + 2] <= m_proj[2]) &&
-                  (m_tvx[(3 * b) + 2] <= m_proj[2]) &&
-                  (m_tvx[(3 * c) + 2] <= m_proj[2])) {
+              if ((z1 <= far) && (z2 <= far) && (z3 <= far)) {
                 // Everything is after far plane, so cull
                 m_paint[i] = 0xffffffff;
                 
               } else {
                 // Triangle survived all culling, so we need to compute
                 // the Z centroid next
-                z = (m_tvx[(3 * a) + 2] +
-                      m_tvx[(3 * b) + 2] +
-                      m_tvx[(3 * c) + 2])
-                        / 3.0;
+                z = (z1 + z2 + z3) / 3.0;
                 
                 // Set to zero if not finite
                 if (!isFinite(z)) {
@@ -988,11 +1002,11 @@
                 }
                 
                 // Clamp Z centroid to near/far plane range
-                z = Math.min(Math.max(z, m_proj[2]), m_proj[1]);
+                z = Math.min(Math.max(z, far), near);
                 
                 // Normalize centroid so that 1.0 is near plane and 0.0
                 // is far plane
-                z = (z - m_proj[2]) / (m_proj[1] - m_proj[2]);
+                z = (z - far) / extent;
                 
                 // Quantize to 16-bit integer space and clamp
                 z = Math.floor(z * 65535.0);
@@ -1010,26 +1024,26 @@
           }
         
         } else if ((b !== 0xffff) && (c === 0xffff)) {
-          // Line -- check whether both Z coordinates are greater than
-          // or equal to near plane
-          if ((m_tvx[(3 * a) + 2] >= m_proj[1]) &&
-              (m_tvx[(3 * b) + 2] >= m_proj[1])) {
+          // Line -- get both Z coordinates
+          z1 = m_tvx[(3 * a) + 2];
+          z2 = m_tvx[(3 * b) + 2];
+          
+          // Check whether both Z coordinates are greater than or equal
+          // to near plane
+          if ((z1 >= near) && (z2 >= near)) {
             // Everything in front of near plane, so cull
             m_paint[i] = 0xffffffff;
             
           } else {
             // Not culled by near plane, so next check whether both Z
             // coordinates are less than or equal to far plane
-            if ((m_tvx[(3 * a) + 2] <= m_proj[2]) &&
-                (m_tvx[(3 * b) + 2] <= m_proj[2])) {
+            if ((z1 <= far) && (z2 <= far)) {
               // Everything behind far plane, so cull
               m_paint[i] = 0xffffffff;
               
             } else {
               // Line not culled, so we need to compute Z centroid next
-              z = (m_tvx[(3 * a) + 2] +
-                      m_tvx[(3 * b) + 2])
-                        / 2.0;
+              z = (z1 + z2) / 2.0;
               
               // Set to zero if not finite
               if (!isFinite(z)) {
@@ -1037,11 +1051,11 @@
               }
               
               // Clamp Z centroid to near/far plane range
-              z = Math.min(Math.max(z, m_proj[2]), m_proj[1]);
+              z = Math.min(Math.max(z, far), near);
               
               // Normalize centroid so that 1.0 is near plane and 0.0
               // is far plane
-              z = (z - m_proj[2]) / (m_proj[1] - m_proj[2]);
+              z = (z - far) / extent;
               
               // Quantize to 16-bit integer space and clamp
               z = Math.floor(z * 65535.0);
@@ -1054,34 +1068,29 @@
           }
         
         } else {
-          // Point or sphere -- check whether origin Z coordinate is
-          // greater than or equal to near plane
-          if (m_tvx[(3 * a) + 2] >= m_proj[1]) {
-            // Point/sphere origin is in front of near plane, so cull
+          // Point or sphere -- get the origin Z coordinate
+          z = m_tvx[(3 * a) + 2];
+          
+          // Check whether origin Z coordinate is greater than or equal
+          // to near plane
+          if (z >= near) {
+            // Origin is in front of near plane, so cull
             m_paint[i] = 0xffffffff;
             
           } else {
             // Not culled by near plane, so next check whether it is
             // behind far plane
-            if (m_tvx[(3 * a) + 2] <= m_proj[2]) {
+            if (z <= far) {
               // Point/sphere origin is behind far plane, so cull
               m_paint[i] = 0xffffffff;
               
             } else {
-              // Not culled, so use Z coordinate
-              z = m_tvx[(3 * a) + 2];
+              // Not culled; clamp Z origin to near/far plane range
+              z = Math.min(Math.max(z, far), near);
               
-              // Set to zero if not finite
-              if (!isFinite(z)) {
-                z = 0.0;
-              }
-              
-              // Clamp Z centroid to near/far plane range
-              z = Math.min(Math.max(z, m_proj[2]), m_proj[1]);
-              
-              // Normalize centroid so that 1.0 is near plane and 0.0
-              // is far plane
-              z = (z - m_proj[2]) / (m_proj[1] - m_proj[2]);
+              // Normalize origin so that 1.0 is near plane and 0.0 is
+              // far plane
+              z = (z - far) / (extent);
               
               // Quantize to 16-bit integer space and clamp
               z = Math.floor(z * 65535.0);
