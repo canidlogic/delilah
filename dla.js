@@ -855,6 +855,105 @@
   }
   
   /*
+   * Draw a sphere.
+   * 
+   * rc is the rendering context to draw the sphere into.  (x, y) are
+   * the screen coordinates of the sphere, and r is the screen radius of
+   * the sphere.
+   * 
+   * fc is the fill color of the sphere, which is either 0xffff for no
+   * fill or a 15-bit HiColor value.
+   * 
+   * si is the stroke style for the sphere outline, which is either
+   * 0xffff for no stroke outline or an index into the line style array.
+   * 
+   * CAUTION:  For speed, this function performs no checking of
+   * parameters or state.
+   * 
+   * CAUTION: Fill style, stroke style, line width, and current path in
+   * the rendering context are altered.
+   * 
+   * CAUTION: Assumes settings for lineCap, lineJoin, and miterLimit are
+   * already set correctly.
+   * 
+   * Parameters:
+   * 
+   *   rc : CanvasRenderingContext2D - the 2D rendering context
+   * 
+   *   x : the X coordinate
+   * 
+   *   y : the Y coordinate
+   * 
+   *   r : the radius
+   * 
+   *   fc : the 15-bit HiColor fill color of the sphere or 0xffff
+   * 
+   *   si : the line style index or 0xffff
+   */
+  function drawSphere(rc, x, y, r, fc, si) {
+    
+    var r, g, b, rgb;
+    
+    // Begin new path and add the circle to it
+    rc.beginPath();
+    rc.arc(x, y, r, 0, 2 * Math.PI);
+    
+    // Fill sphere if requested
+    if (fc !== 0xffff) {
+      // Extract 5-bit channels
+      r = (fc >> 10);
+      g = (fc >> 5) & 0x1f;
+      b = fc & 0x1f;
+      
+      // Expand 5-bit channels to 8-bit by shifting left and duplicating
+      // three most significant bits in least significant
+      r = (r << 3) | (r >> 2);
+      g = (g << 3) | (g >> 2);
+      b = (b << 3) | (b >> 2);
+      
+      // Set fill color
+      rc.fillStyle = "rgb(" + r.toString(10) +
+                      ", " + g.toString(10) +
+                      ", " + b.toString(10) + ")";
+      
+      // Fill the circle
+      rc.fill();
+    }
+    
+    // Stroke sphere if requested
+    if (si !== 0xffff) {
+    
+      // Get line style object
+      si = m_lstyle[si];
+      
+      // Get color
+      rgb = si.color;
+      
+      // Extract 5-bit channels
+      r = (rgb >> 10);
+      g = (rgb >> 5) & 0x1f;
+      b = rgb & 0x1f;
+      
+      // Expand 5-bit channels to 8-bit by shifting left and duplicating
+      // three most significant bits in least significant
+      r = (r << 3) | (r >> 2);
+      g = (g << 3) | (g >> 2);
+      b = (b << 3) | (b >> 2);
+      
+      // Set stroke color
+      rc.strokeStyle = "rgb(" + r.toString(10) +
+                        ", " + g.toString(10) +
+                        ", " + b.toString(10) + ")";
+      
+      // Set line width
+      rc.lineWidth = si.width;
+      
+      // Stroke the circle
+      rc.stroke();
+    }
+  }
+  
+  /*
    * Public functions
    * ================
    */
@@ -875,11 +974,12 @@
   function renderScene(rc, w, h) {
     
     var func_name = "renderScene";
-    var i, j, k, k_max, p, z;
+    var i, j, k, k_max, p, x, y, z, r;
     var a, b, c, d, e, bi;
     var z1, z2, z3;
     var e1x, e1y, e2x, e2y;
     var near, far, extent;
+    var proj_d, rad_mul;
     var mtxCam, mtxProj;
     
     // Check parameters and convert to integers
@@ -947,7 +1047,7 @@
       mtxProj.scale(h / 2, -(h / 2), 1);
       
       // Finally, adjust origin so origin is top-left of screen
-      mtxProj.translate(-(w / 2), -(h / 2), 0);
+      mtxProj.translate(w / 2, h / 2, 0);
       
       // Transform all vertices in the vertex buffer both into the
       // camera-transformed buffer m_tvx and the projected buffer m_pvx
@@ -975,6 +1075,10 @@
       near   = m_proj[1];
       far    = m_proj[2];
       extent = near - far;
+      
+      // Cache values used in calculating projected sphere radii
+      proj_d  = 1 / Math.tan(m_proj[0] * Math.PI / 2);
+      rad_mul = (proj_d * h) / 2.0;
       
       // Fill the paint sorting list by going through all scene objects,
       // applying backface cull to triangles and then near/far full
@@ -1182,9 +1286,27 @@
           console.log("line " + a + " " + b);
           
         } else if ((b === 0xffff) && (c !== 0xffff)) {
-          // Sphere
-          // @@TODO:
-          console.log("sphere " + a + " " + c);
+          // Sphere -- begin by getting the radius in world/camera space
+          // and the Z coordinate of origin in camera space
+          bi = a * 3;
+          r  = m_rad[c];
+          z  = m_tvx[bi + 2];
+          
+          // Project the radius and scale so that it is in projected
+          // screen space
+          r = (r / (proj_d - z)) * rad_mul;
+          
+          // Get projected X and Y
+          x = m_pvx[bi];
+          y = m_pvx[bi + 1];
+          
+          // Only proceed if projected radius is finite and greater than
+          // zero
+          if (isFinite(r) && (r > 0.0)) {
+            
+            // Draw the sphere
+            drawSphere(rc, x, y, r, d, e);
+          }
         
         } else {
           // Point
