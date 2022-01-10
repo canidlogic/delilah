@@ -875,8 +875,8 @@
   function renderScene(rc, w, h) {
     
     var func_name = "renderScene";
-    var i, j, p, z;
-    var a, b, c, bi;
+    var i, j, k, k_max, p, z;
+    var a, b, c, d, e, bi;
     var z1, z2, z3;
     var e1x, e1y, e2x, e2y;
     var near, far, extent;
@@ -1141,7 +1141,57 @@
       // of the paint array is filled in with 0xffffffff
       m_paint.sort();
       
-      // @@TODO:
+      // Now render all scene objects in order of centroids from back to
+      // front; the variable k is used as a retry count for triangle
+      // clipping
+      k = 0;
+      k_max = 0;
+      j = m_paint.length;
+      for(i = 0; i < j; i++) {
+        
+        // Get the current paint index value
+        p = m_paint[i];
+        
+        // If current paint index is 0xffffffff then we are done
+        if (p === 0xffffffff) {
+          break;
+        }
+        
+        // If we got here, the index of the scene object to render is in
+        // the 16 least significant bits
+        p = p & 0xffff;
+        
+        // Convert to base address in scene array and get scene object
+        // values
+        p = p * 5;
+        a = m_scene[p];
+        b = m_scene[p + 1];
+        c = m_scene[p + 2];
+        d = m_scene[p + 3];
+        e = m_scene[p + 4];
+        
+        // Render specific type of object
+        if ((b !== 0xffff) && (c !== 0xffff)) {
+          // Triangle
+          // @@TODO:
+          console.log("triangle " + a + " " + b + " " + c);
+        
+        } else if ((b !== 0xffff) && (c === 0xffff)) {
+          // Line
+          // @@TODO:
+          console.log("line " + a + " " + b);
+          
+        } else if ((b === 0xffff) && (c !== 0xffff)) {
+          // Sphere
+          // @@TODO:
+          console.log("sphere " + a + " " + c);
+        
+        } else {
+          // Point
+          // @@TODO:
+          console.log("point " + a);
+        }
+      }
     }
   }
   
