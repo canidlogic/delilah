@@ -1436,6 +1436,11 @@
     // Only proceed further if scene is loaded
     if (m_loaded) {
       
+      // Set line cap and join to round for all lines that will be
+      // stroked during rendering
+      rc.lineCap  = "round";
+      rc.lineJoin = "round";
+      
       // Define the matrix that will transform world space to camera
       // space, where the camera is perfectly level at the origin
       // looking exactly down towards negative Z infinity (right-handed)
