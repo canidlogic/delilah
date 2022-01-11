@@ -855,6 +855,75 @@
   }
   
   /*
+   * Draw a line.
+   * 
+   * rc is the rendering context to draw the line into.  The line goes
+   * from (x1, y1) to (x2, y2) in screen coordinates.
+   * 
+   * si is an index into the line style array.
+   * 
+   * CAUTION:  For speed, this function performs no checking of
+   * parameters or state.
+   * 
+   * CAUTION: Stroke style, line width, and current path in the
+   * rendering context are altered.
+   * 
+   * CAUTION: Assumes settings for lineCap, lineJoin, and miterLimit are
+   * already set correctly.
+   * 
+   * Parameters:
+   * 
+   *   rc : CanvasRenderingContext2D - the 2D rendering context
+   * 
+   *   x1 : the X coordinate of the start point
+   * 
+   *   y1 : the Y coordinate of the start point
+   * 
+   *   x2 : the X coordinate of the end point
+   * 
+   *   y2 : the Y coordinate of the end point
+   * 
+   *   si : the line style index
+   */
+  function drawLine(rc, x1, y1, x2, y2, si) {
+    
+    var rgb, r, g, b;
+    
+    // Get line style object
+    si = m_lstyle[si];
+    
+    // Define new path and add the line to the path
+    rc.beginPath();
+    rc.moveTo(x1, y1);
+    rc.lineTo(x2, y2);
+    
+    // Get line color
+    rgb = si.color;
+    
+    // Extract 5-bit channels
+    r = (rgb >> 10);
+    g = (rgb >> 5) & 0x1f;
+    b = rgb & 0x1f;
+    
+    // Expand 5-bit channels to 8-bit by shifting left and duplicating
+    // three most significant bits in least significant
+    r = (r << 3) | (r >> 2);
+    g = (g << 3) | (g >> 2);
+    b = (b << 3) | (b >> 2);
+    
+    // Set line color
+    rc.strokeStyle = "rgb(" + r.toString(10) +
+                      ", " + g.toString(10) +
+                      ", " + b.toString(10) + ")";
+    
+    // Set line width
+    rc.lineWidth = si.width;
+    
+    // Stroke the line
+    rc.stroke();
+  }
+  
+  /*
    * Draw a sphere.
    * 
    * rc is the rendering context to draw the sphere into.  (x, y) are
@@ -1139,7 +1208,9 @@
     var i, j, k, k_max, p, x, y, z, r;
     var a, b, c, d, e, bi;
     var z1, z2, z3;
-    var e1x, e1y, e2x, e2y;
+    var x1, y1, x2, y2, x3, y3;
+    var t1, t2, t3;
+    var e1x, e1y, e1z, e2x, e2y, e2z;
     var near, far, extent;
     var proj_d, rad_mul;
     var mtxCam, mtxProj;
@@ -1443,9 +1514,103 @@
           console.log("triangle " + a + " " + b + " " + c);
         
         } else if ((b !== 0xffff) && (c === 0xffff)) {
-          // Line
-          // @@TODO:
-          console.log("line " + a + " " + b);
+          // Line -- get Z coordinates first
+          z1 = m_tvx[(3 * a) + 2];
+          z2 = m_tvx[(3 * b) + 2];
+          
+          // Check whether both are within extent
+          if ((z1 <= near) && (z2 <= near) &&
+              (z1 >= far) && (z2 >= far)) {
+            // No clipping is needed, so get the coordinates from the
+            // projected vertices
+            x1 = m_pvx[(3 * a)];
+            x2 = m_pvx[(3 * b)];
+            
+            y1 = m_pvx[(3 * a) + 1];
+            y2 = m_pvx[(3 * b) + 1];
+            
+          } else {
+            // At least one coordinate is outside extent; since we would
+            // have culled the line earlier if both coordinates were
+            // outside of extent, we know exactly one coordinate in
+            // extent and one is out; begin by getting camera X and Y
+            // coordinates
+            x1 = m_tvx[(3 * a)];
+            x2 = m_tvx[(3 * b)];
+            
+            y1 = m_tvx[(3 * a) + 1];
+            y2 = m_tvx[(3 * b) + 1];
+            
+            // Flip coordinates if necessary so that z1 greater than z2
+            if (!(z1 > z2)) {
+              p = x1;
+              x1 = x2;
+              x2 = p;
+              
+              p = y1;
+              y1 = y2;
+              y2 = p;
+              
+              p = z1;
+              z1 = z2;
+              z2 = p;
+            }
+            
+            // If the first Z coordinate is in front of the near plane,
+            // then compute the t1 value along the line at which point
+            // the line crosses the near plane; else, set t1 to zero so
+            // that the whole start of the line is rendered
+            if (z1 > near) {
+              t1 = (near - z1) / (z2 - z1);
+            } else {
+              t1 = 0.0;
+            }
+            
+            // If the second Z coordinate is behind the far plane, then
+            // compute the t2 value along the line at which point the
+            // line crosses the far plane; else, set t2 to 1.0 so that
+            // the whole end of the line is rendered
+            if (z2 < far) {
+              t2 = (far - z1) / (z2 - z1);
+            } else {
+              t2 = 1.0;
+            }
+            
+            // Recompute the endpoints of the line so that the clipped
+            // line lies within the extent between the near and far
+            // planes
+            e1x = x1 + ((x2 - x1) * t1);
+            e1y = y1 + ((y2 - y1) * t1);
+            e1z = z1 + ((z2 - z1) * t1);
+            
+            e2x = x1 + ((x2 - x1) * t2);
+            e2y = y1 + ((y2 - y1) * t2);
+            e2z = z1 + ((z2 - z1) * t2);
+            
+            // Project the new endpoints so they are in screen space
+            p = new Array(3);
+            
+            p[0] = e1x;
+            p[1] = e1y;
+            p[2] = e1z;
+            
+            mtxProj.process(p);
+            
+            x1 = p[0];
+            y1 = p[1];
+            
+            p[0] = e2x;
+            p[1] = e2y;
+            p[2] = e2z;
+            
+            mtxProj.process(p);
+            
+            x2 = p[0];
+            y2 = p[1];
+          }
+          
+          // Draw the line
+          drawLine(rc, x1, y1, x2, y2, e);
           
         } else if ((b === 0xffff) && (c !== 0xffff)) {
           // Sphere -- begin by getting the radius in world/camera space
