@@ -855,6 +855,80 @@
   }
   
   /*
+   * Draw a triangle.
+   * 
+   * rc is the rendering context to draw the triangle into.  The
+   * triangle vertices are (x1, y1), (x2, y2), and (x3, y3) in screen
+   * coordinates.
+   * 
+   * fc is the fill color of the triangle, which is 15-bit HiColor.
+   * 
+   * sw is the style word, which has three 5-bit selectors for edge
+   * styles.  See m_scene documentation for further information.
+   * 
+   * CAUTION:  For speed, this function performs no checking of
+   * parameters or state.
+   * 
+   * CAUTION: Fill style, stroke style, line width, and current path in
+   * the rendering context are altered.
+   * 
+   * CAUTION: Assumes settings for lineCap, lineJoin, and miterLimit are
+   * already set correctly.
+   * 
+   * Parameters:
+   * 
+   *   rc : CanvasRenderingContext2D - the 2D rendering context
+   * 
+   *   x1 : the X coordinate of the first vertex
+   * 
+   *   y1 : the Y coordinate of the first vertex
+   * 
+   *   x2 : the X coordinate of the second vertex
+   * 
+   *   y2 : the Y coordinate of the second vertex
+   * 
+   *   x3 : the X coordinate of the third vertex
+   * 
+   *   y3 : the Y coordinate of the third vertex
+   * 
+   *   fc : the fill color
+   * 
+   *   sw : the triangle style word
+   */
+  function drawTri(rc, x1, y1, x2, y2, x3, y3, fc, sw) {
+    
+    var rgb, r, g, b;
+    
+    // Draw the full triangle shape in a new path
+    rc.beginPath();
+    rc.moveTo(x1, y1);
+    rc.lineTo(x2, y2);
+    rc.lineTo(x3, y3);
+    rc.closePath();
+    
+    // Extract 5-bit channels from fill color
+    r = (fc >> 10);
+    g = (fc >> 5) & 0x1f;
+    b = fc & 0x1f;
+    
+    // Expand 5-bit channels to 8-bit by shifting left and duplicating
+    // three most significant bits in least significant
+    r = (r << 3) | (r >> 2);
+    g = (g << 3) | (g >> 2);
+    b = (b << 3) | (b >> 2);
+    
+    // Set fill color
+    rc.fillStyle = "rgb(" + r.toString(10) +
+                      ", " + g.toString(10) +
+                      ", " + b.toString(10) + ")";
+    
+    // Fill the triangle
+    rc.fill();
+    
+    // @@TODO:
+  }
+  
+  /*
    * Draw a line.
    * 
    * rc is the rendering context to draw the line into.  The line goes
@@ -1207,8 +1281,8 @@
     var func_name = "renderScene";
     var i, j, k, k_max, p, x, y, z, r;
     var a, b, c, d, e, bi;
-    var z1, z2, z3;
-    var x1, y1, x2, y2, x3, y3;
+    var z0, z1, z2, z3;
+    var x0, y0, x1, y1, x2, y2, x3, y3;
     var t1, t2, t3;
     var e1x, e1y, e1z, e2x, e2y, e2z;
     var near, far, extent;
@@ -1323,7 +1397,7 @@
       j = m_scene.length / 5;
       for(i = 0; i < j; i++) {
         
-        // Get this scene object vertices
+        // Get this scene object's vertices
         bi = i * 5;
         a = m_scene[bi    ];
         b = m_scene[bi + 1];
@@ -1336,17 +1410,31 @@
           z2 = m_tvx[(3 * b) + 2];
           z3 = m_tvx[(3 * c) + 2];
           
-          // Compute X and Y of first edge (V2 -> V1) and also of second
-          // edge (V2 -> V3)
-          e1x = m_tvx[(3 * a)    ] - m_tvx[(3 * b)    ];
-          e1y = m_tvx[(3 * a) + 1] - m_tvx[(3 * b) + 1];
+          // Also get X Y coordinates of first vertex
+          bi = 3 * a;
+          x1 = m_tvx[bi];
+          y1 = m_tvx[bi + 1];
           
-          e2x = m_tvx[(3 * c)    ] - m_tvx[(3 * b)    ];
-          e2y = m_tvx[(3 * c) + 1] - m_tvx[(3 * b) + 1];
+          // Compute the vectors of the first edge (V1 -> V2) and also
+          // of second edge (V1 -> V3)
+          bi = 3 * b;
+          e1x = m_tvx[bi    ] - x1;
+          e1y = m_tvx[bi + 1] - y1;
+          e1z = m_tvx[bi + 2] - z1;
           
-          // Check Z direction of cross product of two edges first
-          // (a1*b2 - a2*b1)
-          if ((e1x * e2y) - (e1y * e2x) > 0) {
+          bi = 3 * c;
+          e2x = m_tvx[bi    ] - x1;
+          e2y = m_tvx[bi + 1] - y1;
+          e2z = m_tvx[bi + 2] - z1;
+          
+          // Compute dot product of vector from camera to first vertex
+          // of the triangle, and the normal at the first vertex
+          p = (x1 * ((e1y * e2z) - (e1z * e2y))) +
+              (y1 * ((e1z * e2x) - (e1x * e2z))) +
+              (z1 * ((e1x * e2y) - (e1y * e2x)));
+          
+          // Check dot product first for backface culling
+          if (p < 0) {
             // Not backface-culled, so next check whether all Z
             // coordinates are greater than or equal to near plane
             if ((z1 >= near) && (z2 >= near) && (z3 >= near)) {
@@ -1509,9 +1597,289 @@
         
         // Render specific type of object
         if ((b !== 0xffff) && (c !== 0xffff)) {
-          // Triangle
-          // @@TODO:
-          console.log("triangle " + a + " " + b + " " + c);
+          // Triangle -- get Z coordinates first
+          z1 = m_tvx[(3 * a) + 2];
+          z2 = m_tvx[(3 * b) + 2];
+          z3 = m_tvx[(3 * c) + 2];
+          
+          // Check whether all are within extent
+          if ((z1 <= near) && (z2 <= near) && (z3 <= near) &&
+              (z1 >= far) && (z2 >= far) && (z3 >= far)) {
+            // No clipping is needed, so get the coordinates from the
+            // projected vertices
+            bi = (3 * a);
+            x1 = m_pvx[bi];
+            y1 = m_pvx[bi + 1];
+            
+            bi = (3 * b);
+            x2 = m_pvx[bi];
+            y2 = m_pvx[bi + 1];
+            
+            bi = (3 * c);
+            x3 = m_pvx[bi];
+            y3 = m_pvx[bi + 1];
+            
+          } else {
+            // Clipping needed, and clipping may furthermore generate
+            // multiple triangles from one, so we may need to process
+            // the same triangle multiple times to render a different
+            // clipped sub-triangle each time; check k, which is the
+            // counter that keeps track of how many times this clipped
+            // triangle has been retried
+            if (k === 0) {
+              // k is zero, which means this is the first time we are
+              // handling this clipped triangle; begin by setting k_max
+              // to one and k to one
+              k_max = 1;
+              k = 1;
+              
+              // If exactly one Z coordinate is beyond the far plane,
+              // this will require two sub-triangles, so multiply k_max
+              // by two in that case
+              p = 0;
+              if (z1 < far) {
+                p++;
+              }
+              if (z2 < far) {
+                p++;
+              }
+              if (z3 < far) {
+                p++;
+              }
+              if (p === 1) {
+                k_max = k_max * 2;
+              }
+              
+              // If exactly one Z coordinate is before the near plane,
+              // this will require two sub-triangles, so multiply k_max
+              // by two in that case
+              p = 0;
+              if (z1 > near) {
+                p++;
+              }
+              if (z2 > near) {
+                p++;
+              }
+              if (z3 > near) {
+                p++;
+              }
+              if (p === 1) {
+                k_max = k_max * 2;
+              }
+              
+              // We now have k_max set to the total number of
+              // subtriangles we will need to render for clipping, which
+              // may be either 1, 2, or 4, and we have k set to 1 so
+              // that the next time around we will render the first
+              // subtriangle; decrement the shape index so that we
+              // process this triangle again and restart the loop
+              i--;
+              continue;
+              
+            } else if (k > k_max) {
+              // k has exceeded total number of subtriangles, so there
+              // is nothing left to render for this shape; reset k and
+              // k_max to zero and restart the loop to process the next
+              // shape
+              k_max = 0;
+              k = 0;
+              continue;
+              
+            } else {
+              // k is in range [1, k_max] so we are now rendering one
+              // of the subtriangles for this clipped triangle; get the
+              // rest of the camera coordinates
+              bi = (3 * a);
+              x1 = m_tvx[bi];
+              y1 = m_tvx[bi + 1];
+              
+              bi = (3 * b);
+              x2 = m_tvx[bi];
+              y2 = m_tvx[bi + 1];
+              
+              bi = (3 * c);
+              x3 = m_tvx[bi];
+              y3 = m_tvx[bi + 1];
+              
+              // Begin by doing a bubble sort to sort the vertices in
+              // descending Z coordinate order
+              if (z1 < z2) {
+                p = x1;
+                x1 = x2;
+                x2 = p;
+                
+                p = y1;
+                y1 = y2;
+                y2 = p;
+                
+                p = z1;
+                z1 = z2;
+                z2 = p;
+              }
+              
+              if (z2 < z3) {
+                p = x2;
+                x2 = x3;
+                x3 = p;
+                
+                p = y2;
+                y2 = y3;
+                y3 = p;
+                
+                p = z2;
+                z2 = z3;
+                z3 = p;
+              }
+              
+              if (z1 < z2) {
+                p = x1;
+                x1 = x2;
+                x2 = p;
+                
+                p = y1;
+                y1 = y2;
+                y2 = p;
+                
+                p = z1;
+                z1 = z2;
+                z2 = p;
+              }
+              
+              // Handle near plane clipping, if necessary
+              if ((z1 > near) && (z2 > near)) {
+                // The first two vertices are both before the near
+                // clipping plane, so we just need to adjust those two
+                // vertices so that they are on the near clipping plane
+                // while preserving the edge directions 1-3 and 2-3
+                t1 = (near - z3) / (z1 - z3);
+                t2 = (near - z3) / (z2 - z3);
+                
+                x1 = x3 + (t1 * (x1 - x3));
+                y1 = y3 + (t1 * (y1 - y3));
+                z1 = near;
+                
+                x2 = x3 + (t2 * (x2 - x3));
+                y2 = y3 + (t2 * (y2 - y3));
+                z2 = near;
+                
+              } else if (z1 > near) {
+                // Only the first vertex is before the near clipping
+                // plane, so we need two different subtriangles; when
+                // k_max is 4, we will clip first subtriangle on k=1,2
+                // and second subtriangle on k=3,4; when k_max is 2, we
+                // will clip first subtriangle on k=1 and second
+                // subtriangle on k=2; begin by storing original first
+                // vertex in (x0,y0,z0)
+                x0 = x1;
+                y0 = y1;
+                z0 = z1;
+                
+                // Adjust first vertex so that it is on edge 1->2 at the
+                // intersection with the near plane
+                t2 = (near - z2) / (z0 - z2);
+                x1 = x2 + (t2 * (x0 - x2));
+                y1 = y2 + (t2 * (y0 - y2));
+                z1 = near;
+                
+                // If this is second subtriangle, adjust second vertex
+                // so that it is on edge 1->3 at the intersection with
+                // the near plane
+                if (k > k_max / 2) {
+                  t3 = (near - z3) / (z0 - z3);
+                  x2 = x3 + (t3 * (x0 - x3));
+                  y2 = y3 + (t3 * (y0 - y3));
+                  z2 = near;
+                }
+              }
+              
+              // Handle far plane clipping, if necessary
+              if ((z2 < far) && (z3 < far)) {
+                // The second two vertices are both after the far
+                // clipping plane, so we just need to adjust those two
+                // vertices so that they are on the far clipping plane
+                // while preserving the edge directions 1-2 and 1-3
+                t2 = (far - z2) / (z1 - z2);
+                t3 = (far - z3) / (z1 - z3);
+                
+                x2 = x2 + (t2 * (x1 - x2));
+                y2 = y2 + (t2 * (y1 - y2));
+                z2 = far;
+                
+                x3 = x3 + (t3 * (x1 - x3));
+                y3 = y3 + (t3 * (y1 - y3));
+                z3 = far;
+                
+              } else if (z3 < far) {
+                // Only the third vertex is after the far clipping
+                // plane, so we need two different subtriangles; when
+                // k_max is 4, we will clip first subtriangle on k=1,3
+                // and second subtriangle on k=2,4; when k_max is 2, we
+                // will clip first subtriangle on k=1 and second
+                // subtriangle on k=2; begin by storing original third
+                // vertex in (x0,y0,z0)
+                x0 = x3;
+                y0 = y3;
+                z0 = z3;
+                
+                // Adjust third vertex so that it is on edge 1->3 at the
+                // intersection with the far plane
+                t1 = (far - z0) / (z1 - z0);
+                x3 = x0 + (t1 * (x1 - x0));
+                y3 = y0 + (t1 * (y1 - y0));
+                y3 = far;
+                
+                // If this is second subtriangle, adjust first vertex so
+                // that it is on edge 2->3 at the intersection with the
+                // far plane
+                if ((k % 2) === 0) {
+                  t2 = (far - z0) / (z2 - z0);
+                  x1 = x0 + (t2 * (x2 - x0));
+                  y1 = y0 + (t2 * (y2 - y0));
+                  z1 = far;
+                }
+              }
+              
+              // Increment k so that next subtriangle will be processed
+              // next time around and decrement shape index so we will
+              // process the same triangle shape again next loop
+              k++;
+              i--;
+            }
+            
+            // If we got here, then project the vertices of the clipped
+            // subtriangle into screen space
+            p = new Array(3);
+            
+            p[0] = x1;
+            p[1] = y1;
+            p[2] = z1;
+            
+            mtxProj.process(p);
+            
+            x1 = p[0];
+            y1 = p[1];
+            
+            p[0] = x2;
+            p[1] = y2;
+            p[2] = z2;
+            
+            mtxProj.process(p);
+            
+            x2 = p[0];
+            y2 = p[1];
+            
+            p[0] = x3;
+            p[1] = y3;
+            p[2] = z3;
+            
+            mtxProj.process(p);
+            
+            x3 = p[0];
+            y3 = p[1];
+          }
+          
+          // Draw triangle
+          drawTri(rc, x1, y1, x2, y2, x3, y3, d, e);
         
         } else if ((b !== 0xffff) && (c === 0xffff)) {
           // Line -- get Z coordinates first
