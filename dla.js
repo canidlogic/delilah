@@ -900,6 +900,14 @@
     var rgb, r, g, b;
     var s1, s2, s3, si;
     
+    // Floor coordinates to integers to avoid forcing anti-aliasing
+    x1 = Math.floor(x1);
+    y1 = Math.floor(y1);
+    x2 = Math.floor(x2);
+    y2 = Math.floor(y2);
+    x3 = Math.floor(x3);
+    y3 = Math.floor(y3);
+    
     // Draw the full triangle shape in a new path
     rc.beginPath();
     rc.moveTo(x1, y1);
@@ -1079,6 +1087,12 @@
     
     var rgb, r, g, b;
     
+    // Floor coordinates to integers to avoid forcing anti-aliasing
+    x1 = Math.floor(x1);
+    y1 = Math.floor(y1);
+    x2 = Math.floor(x2);
+    y2 = Math.floor(y2);
+    
     // Get line style object
     si = m_lstyle[si];
     
@@ -1152,6 +1166,13 @@
   function drawSphere(rc, x, y, r, fc, si) {
     
     var r, g, b, rgb;
+    
+    // Floor coordinates to integers to avoid forcing anti-aliasing
+    x = Math.floor(x);
+    y = Math.floor(y);
+    
+    // Floor radius to integer and then make at least one
+    r = Math.max(Math.floor(r), 1);
     
     // Begin new path and add the circle to it
     rc.beginPath();
@@ -1244,6 +1265,10 @@
     
     var func_name = "drawPoint";
     var sz, sh, k, rgb, r, g, b;
+    
+    // Floor coordinates to integers to avoid forcing anti-aliasing
+    x = Math.floor(x);
+    y = Math.floor(y);
     
     // Get point style object
     psi = m_pstyle[psi];
