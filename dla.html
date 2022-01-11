@@ -45,6 +45,38 @@ h1 {
  padding: 0;
 }
 
+#divSpeed {
+  margin-top: 1em;
+}
+
+#divSpeed th {
+  font-weight: normal;
+  text-align: center;
+  text-decoration: underline;
+  padding-bottom: 0.5em;
+}
+
+#divSpeed .cmdrow td {
+  width: 3em;
+  height: 2.5em;
+}
+
+#divSpeed .cmdrow input {
+  width: 100%;
+  height: 100%;
+}
+
+#divSpeed .lbl {
+  text-align: right;
+  font-family: monospace;
+  padding-left: 0.25em;
+  padding-right: 0.25em;
+}
+
+#divSpeed .box input {
+  width: 3em;
+}
+
 #divSizer {
   margin-top: 1em;
 }
@@ -253,6 +285,21 @@ h1 {
 // after it is declared -- this prevents anything from being implicitly
 // added to global scope
 (function() {
+
+  /*
+   * Constants
+   * =========
+   */
+  
+  /*
+   * Default unit speed in units.
+   */
+  var DEFAULT_SPEED_U = 1.0;
+  
+  /*
+   * Default angle speed in degrees.
+   */
+  var DEFAULT_SPEED_A = 1.0;
 
   /*
    * Local data
@@ -1192,6 +1239,52 @@ h1 {
   }
   
   /*
+   * Adjust camera position with relative movement.
+   *
+   * dolly, pan, yaw, and pitch are the number of motion events.  Use
+   * zero if no motion, positive one if motion backward (dolly), right
+   * (pan), up (lift), left (yaw), up (pitch), and negative one for
+   * motion in opposite direction.
+   *
+   * yaw and pitch affect the direction the camera is facing, without
+   * changing the camera position in space.  dolly, pan, and lift affect
+   * the camera position in space without changing the direction it is
+   * facing.  dolly and pan motions are always relative to the current
+   * yaw of the camera (after adjustment by the yaw parameter) while
+   * staying on the same XZ plane, while lift always moves up and down
+   * the Y axis regardless of camera direction.
+   *
+   * The current values of the speed input controls will be used to
+   * determine how much a single unit of movement affects the position
+   * or direction.  If either speed input control has an invalid value,
+   * it will be reset to its default value by this function.
+   *
+   * Note that this is a high-level function that simulates user input
+   * into the camera position controls without directly talking to the
+   * rendering layer.  At the beginning of the function, the "Get"
+   * button is virtually clicked to get the current camera position.
+   * The camera position is then modified virtually, and the "Set"
+   * button is virtually clicked to update.
+   *
+   * Parameters:
+   *
+   *   dolly : number - the dolly quantity for updating camera position
+   *
+   *   pan : number - the pan quantity for updating camera position
+   *
+   *   lift : number - the lift quantity for updating camera position
+   *
+   *   yaw : number - the yaw quantity for updating camera direction
+   *
+   *   pitch : number - the pitch quantity for updating camera direction
+   */
+  function handleMove(dolly, pan, lift, yaw, pitch) {
+    // @@TODO:
+    console.log("move " + dolly + " " + pan + " " + lift + " " +
+                  yaw + " " + pitch);
+  }
+  
+  /*
    * Event handler for when the document is fully loaded.
    *
    * This should be registered later.
@@ -1203,6 +1296,69 @@ h1 {
     
     // Load the default scene
     dla_main.loadDefaultScene();
+    
+    // Add keydown handlers to canvas that do the same as the position
+    // and angle buttons
+    e = document.getElementById("cnvMain");
+    if (e == null) {
+      fault(func_name, 470);
+    }
+    e.addEventListener("keydown", function(ev) {
+      var kc = ev.code;
+      if (kc === "KeyW") {
+        handleMove(-1,0,0,0,0);
+        ev.preventDefault();
+        
+      } else if (kc === "KeyA") {
+        handleMove(0,-1,0,0,0);
+        ev.preventDefault();
+        
+      } else if (kc === "KeyS") {
+        handleMove(1,0,0,0,0);
+        ev.preventDefault();
+        
+      } else if (kc === "KeyD") {
+        handleMove(0,1,0,0,0);
+        ev.preventDefault();
+        
+      } else if (kc === "ShiftLeft") {
+        handleMove(0,0,-1,0,0);
+        ev.preventDefault();
+        
+      } else if (kc === "Space") {
+        handleMove(0,0,1,0,0);
+        ev.preventDefault();
+        
+      } else if (kc === "ArrowUp") {
+        handleMove(0,0,0,0,1);
+        ev.preventDefault();
+        
+      } else if (kc === "ArrowLeft") {
+        handleMove(0,0,0,1,0);
+        ev.preventDefault();
+        
+      } else if (kc === "ArrowDown") {
+        handleMove(0,0,0,0,-1);
+        ev.preventDefault();
+        
+      } else if (kc === "ArrowRight") {
+        handleMove(0,0,0,-1,0);
+        ev.preventDefault();
+      }
+    });
+    
+    // Set the default unit speed and angle speed
+    e = document.getElementById("txtSpeedU");
+    if (e == null) {
+      fault(func_name, 480);
+    }
+    e.value = DEFAULT_SPEED_U;
+    
+    e = document.getElementById("txtSpeedA");
+    if (e == null) {
+      fault(func_name, 485);
+    }
+    e.value = DEFAULT_SPEED_A;
     
     // Add an event handler to FOV box to automatically recalculate the
     // near limit
@@ -1246,8 +1402,10 @@ h1 {
     }
     e.style.display = "block";
     
-    // Finally, draw the canvas
+    // Finally, draw the canvas and invoke resizeChanged so that canvas
+    // reflects selection in the size box
     drawCanvas();
+    resizeChanged();
   }
 
   /*
@@ -1264,6 +1422,7 @@ h1 {
     "writeProj": writeProj,
     "readCamera": readCamera,
     "writeCamera": writeCamera,
+    "handleMove": handleMove,
     "handleLoad": handleLoad
   };
 
@@ -1289,9 +1448,97 @@ window.onload = dla_html.handleLoad;
     
     <!-- The main program window, shown after page is loaded -->
     <div id="divMain">
-      <canvas width="320" height="180" id="cnvMain">
+      <canvas width="320" height="180" id="cnvMain" tabindex="-1">
         HTML5 canvas support is required!
       </canvas>
+      <div id="divSpeed">
+        <table>
+          <tr>
+            <th colspan="3">Position</th>
+            <th colspan="3">Angle</th>
+          </tr>
+          <tr class="cmdrow">
+            <td>
+              &nbsp;
+            </td>
+            <td>
+              <input type="button" value="W"
+                onclick="dla_html.handleMove(-1,0,0,0,0)"/>
+            </td>
+            <td>
+              &nbsp;
+            </td>
+            <td>
+              &nbsp;
+            </td>
+            <td>
+              <input type="button" value="&uparrow;"
+                onclick="dla_html.handleMove(0,0,0,0,1)"/>
+            </td>
+            <td>
+              &nbsp;
+            </td>
+          </tr>
+          <tr class="cmdrow">
+            <td>
+              <input type="button" value="A"
+                onclick="dla_html.handleMove(0,-1,0,0,0)"/>
+            </td>
+            <td>
+              <input type="button" value="S"
+                onclick="dla_html.handleMove(1,0,0,0,0)"/>
+            </td>
+            <td>
+              <input type="button" value="D"
+                onclick="dla_html.handleMove(0,1,0,0,0)"/>
+            </td>
+            <td>
+              <input type="button" value="&leftarrow;"
+                onclick="dla_html.handleMove(0,0,0,1,0)"/>
+            </td>
+            <td>
+              <input type="button" value="&downarrow;"
+                onclick="dla_html.handleMove(0,0,0,0,-1)"/>
+            </td>
+            <td>
+              <input type="button" value="&rightarrow;"
+                onclick="dla_html.handleMove(0,0,0,-1,0)"/>
+            </td>
+          </tr>
+          <tr class="cmdrow">
+            <td>
+              <input type="button" value="&Delta;"
+                onclick="dla_html.handleMove(0,0,-1,0,0)"/>
+            </td>
+            <td>
+              <input type="button" value="&blank;"
+                onclick="dla_html.handleMove(0,0,0,0,0)"/>
+            </td>
+            <td>
+              &nbsp;
+            </td>
+            <td>
+              &nbsp;
+            </td>
+            <td>
+              &nbsp;
+            </td>
+            <td>
+              &nbsp;
+            </td>
+          </tr>
+          <tr>
+            <td class="lbl">Speed:</td>
+            <td class="box" colspan="2">
+              <input type="text" id="txtSpeedU" name="txtSpeedU"/>
+            </td>
+            <td class="lbl">Speed:</td>
+            <td class="box" colspan="2">
+              <input type="text" id="txtSpeedA" name="txtSpeedA"/>
+            </td>
+          </tr>
+        </table>
+      </div>
       <div id="divSizer">
         Canvas size:
         <select id="optSize" name="optSize">
