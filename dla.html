@@ -1242,7 +1242,7 @@ h1 {
    * Adjust camera position with relative movement.
    *
    * dolly, pan, yaw, and pitch are the number of motion events.  Use
-   * zero if no motion, positive one if motion backward (dolly), right
+   * zero if no motion, positive one if motion forward (dolly), right
    * (pan), up (lift), left (yaw), up (pitch), and negative one for
    * motion in opposite direction.
    *
@@ -1279,9 +1279,162 @@ h1 {
    *   pitch : number - the pitch quantity for updating camera direction
    */
   function handleMove(dolly, pan, lift, yaw, pitch) {
-    // @@TODO:
-    console.log("move " + dolly + " " + pan + " " + lift + " " +
-                  yaw + " " + pitch);
+    
+    var func_name = "handleMove";
+    var eUS, eAS;
+    var us, as;
+    var eX, eY, eZ, eYaw, ePitch;
+    var vx, vy, vz, vyaw, vpitch;
+    var dx, dz;
+    
+    // Check parameters
+    if ((typeof dolly !== "number") ||
+        (typeof pan !== "number") ||
+        (typeof lift !== "number") ||
+        (typeof yaw !== "number") ||
+        (typeof pitch !== "number")) {
+      fault(func_name, 100);
+    }
+    if ((!isFinite(dolly)) ||
+        (!isFinite(pan)) ||
+        (!isFinite(lift)) ||
+        (!isFinite(yaw)) ||
+        (!isFinite(pitch))) {
+      fault(func_name, 101);
+    }
+    
+    // Get the unit speed and angle speed controls
+    eUS = document.getElementById("txtSpeedU");
+    eAS = document.getElementById("txtSpeedA");
+    if ((eUS == null) || (eAS == null)) {
+      fault(func_name, 200);
+    }
+    
+    // Attempt to parse unit speed and angle speed
+    us = parseFloat(eUS.value);
+    as = parseFloat(eAS.value);
+    
+    // If either value did not parse correctly or is not greater than
+    // zero, replace with default value and update control
+    if ((!isFinite(us)) || (!(us > 0.0))) {
+      us = DEFAULT_SPEED_U;
+      eUS.value = DEFAULT_SPEED_U;
+    }
+    if ((!isFinite(as)) || (!(as > 0.0))) {
+      as = DEFAULT_SPEED_A;
+      eAS.value = DEFAULT_SPEED_A;
+    }
+    
+    // Load camera position controls
+    readCamera();
+    
+    // Get camera controls (except roll)
+    eX = document.getElementById("txtCamX");
+    if (eX == null) {
+      fault(func_name, 301);
+    }
+    
+    eY = document.getElementById("txtCamY");
+    if (eY == null) {
+      fault(func_name, 302);
+    }
+    
+    eZ = document.getElementById("txtCamZ");
+    if (eZ == null) {
+      fault(func_name, 303);
+    }
+    
+    eYaw = document.getElementById("txtCamYaw");
+    if (eYaw == null) {
+      fault(func_name, 304);
+    }
+    
+    ePitch = document.getElementById("txtCamPitch");
+    if (ePitch == null) {
+      fault(func_name, 305);
+    }
+    
+    // Read current settings
+    vx = parseFloat(eX.value);
+    vy = parseFloat(eY.value);
+    vz = parseFloat(eZ.value);
+    vyaw = parseFloat(eYaw.value);
+    vpitch = parseFloat(ePitch.value);
+    
+    if ((!isFinite(vx)) ||
+        (!isFinite(vy)) ||
+        (!isFinite(vz)) ||
+        (!isFinite(vyaw)) ||
+        (!isFinite(vpitch))) {
+      fault(func_name, 400);
+    }
+    
+    // Update yaw and pitch first
+    vyaw = vyaw + (yaw * as);
+    while (vyaw < 0.0) {
+      vyaw = vyaw + 360.0;
+    }
+    while (vyaw >= 360.0) {
+      vyaw = vyaw - 360.0;
+    }
+    
+    vpitch = vpitch + (pitch * as);
+    vpitch = Math.min(vpitch, 90);
+    vpitch = Math.max(vpitch, -90);
+    
+    // Update Y next
+    if (lift !== 0) {
+      vy = vy + (lift * us);
+    }
+    
+    // If dolly present, update X and Z
+    if (dolly !== 0) {
+      // Compute X/Z unit vector in yaw direction
+      dz = -(Math.cos((vyaw / 360.0) * 2 * Math.PI));
+      dx = -(Math.sin((vyaw / 360.0) * 2 * Math.PI));
+      
+      // Update X and Z
+      vx = vx + (dx * us * dolly);
+      vz = vz + (dz * us * dolly);
+    }
+    
+    // If pan present, update X and Z
+    if (pan !== 0) {
+      // Compute X/Z unit vector in pan direction
+      dx = Math.cos((vyaw / 360.0) * 2 * Math.PI);
+      dz = -(Math.sin((vyaw / 360.0) * 2 * Math.PI));
+      
+      // Update X and Z
+      vx = vx + (dx * us * pan);
+      vz = vz + (dz * us * pan);
+    }
+    
+    // Replace non-finite values with zero
+    if (!isFinite(vx)) {
+      vx = 0.0;
+    }
+    if (!isFinite(vy)) {
+      vy = 0.0;
+    }
+    if (!isFinite(vz)) {
+      vz = 0.0;
+    }
+    if (!isFinite(vyaw)) {
+      vyaw = 0.0;
+    }
+    if (!isFinite(vpitch)) {
+      vpitch = 0.0;
+    }
+    
+    // Write new values into controls
+    eX.value = vx;
+    eY.value = vy;
+    eZ.value = vz;
+    eYaw.value = vyaw;
+    ePitch.value = vpitch;
+    
+    // Update camera position with control values
+    writeCamera();
   }
   
   /*
@@ -1306,7 +1459,7 @@ h1 {
     e.addEventListener("keydown", function(ev) {
       var kc = ev.code;
       if (kc === "KeyW") {
-        handleMove(-1,0,0,0,0);
+        handleMove(1,0,0,0,0);
         ev.preventDefault();
         
       } else if (kc === "KeyA") {
@@ -1314,7 +1467,7 @@ h1 {
         ev.preventDefault();
         
       } else if (kc === "KeyS") {
-        handleMove(1,0,0,0,0);
+        handleMove(-1,0,0,0,0);
         ev.preventDefault();
         
       } else if (kc === "KeyD") {
@@ -1463,7 +1616,7 @@ window.onload = dla_html.handleLoad;
             </td>
             <td>
               <input type="button" value="W"
-                onclick="dla_html.handleMove(-1,0,0,0,0)"/>
+                onclick="dla_html.handleMove(1,0,0,0,0)"/>
             </td>
             <td>
               &nbsp;
@@ -1486,7 +1639,7 @@ window.onload = dla_html.handleLoad;
             </td>
             <td>
               <input type="button" value="S"
-                onclick="dla_html.handleMove(1,0,0,0,0)"/>
+                onclick="dla_html.handleMove(-1,0,0,0,0)"/>
             </td>
             <td>
               <input type="button" value="D"
