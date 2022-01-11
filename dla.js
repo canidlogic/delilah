@@ -898,6 +898,7 @@
   function drawTri(rc, x1, y1, x2, y2, x3, y3, fc, sw) {
     
     var rgb, r, g, b;
+    var s1, s2, s3, si;
     
     // Draw the full triangle shape in a new path
     rc.beginPath();
@@ -925,7 +926,122 @@
     // Fill the triangle
     rc.fill();
     
-    // @@TODO:
+    // If style word is not zero, do edge rendering
+    if (sw > 0) {
+    
+      // Extract the three selectors from the style word
+      s1 = (sw >> 10);
+      s2 = (sw >> 5) & 0x1f;
+      s3 = sw & 0x1f;
+    
+      // Render first edge if non-zero
+      if (s1 > 0) {
+        // Get style object
+        si = m_lstyle[s1 - 1];
+        
+        // Begin a new path with just the edge
+        rc.beginPath();
+        rc.moveTo(x1, y1);
+        rc.lineTo(x2, y2);
+        
+        // Get line color
+        rgb = si.color;
+        
+        // Extract 5-bit channels
+        r = (rgb >> 10);
+        g = (rgb >> 5) & 0x1f;
+        b = rgb & 0x1f;
+        
+        // Expand 5-bit channels to 8-bit by shifting left and duplicating
+        // three most significant bits in least significant
+        r = (r << 3) | (r >> 2);
+        g = (g << 3) | (g >> 2);
+        b = (b << 3) | (b >> 2);
+        
+        // Set line color
+        rc.strokeStyle = "rgb(" + r.toString(10) +
+                          ", " + g.toString(10) +
+                          ", " + b.toString(10) + ")";
+        
+        // Set line width
+        rc.lineWidth = si.width;
+        
+        // Stroke the line
+        rc.stroke();
+      }
+      
+      // Render second edge if non-zero
+      if (s2 > 0) {
+        // Get style object
+        si = m_lstyle[s2 - 1];
+        
+        // Begin a new path with just the edge
+        rc.beginPath();
+        rc.moveTo(x2, y2);
+        rc.lineTo(x3, y3);
+        
+        // Get line color
+        rgb = si.color;
+        
+        // Extract 5-bit channels
+        r = (rgb >> 10);
+        g = (rgb >> 5) & 0x1f;
+        b = rgb & 0x1f;
+        
+        // Expand 5-bit channels to 8-bit by shifting left and duplicating
+        // three most significant bits in least significant
+        r = (r << 3) | (r >> 2);
+        g = (g << 3) | (g >> 2);
+        b = (b << 3) | (b >> 2);
+        
+        // Set line color
+        rc.strokeStyle = "rgb(" + r.toString(10) +
+                          ", " + g.toString(10) +
+                          ", " + b.toString(10) + ")";
+        
+        // Set line width
+        rc.lineWidth = si.width;
+        
+        // Stroke the line
+        rc.stroke();
+      }
+      
+      // Render third edge if non-zero
+      if (s3 > 0) {
+        // Get style object
+        si = m_lstyle[s3 - 1];
+        
+        // Begin a new path with just the edge
+        rc.beginPath();
+        rc.moveTo(x3, y3);
+        rc.lineTo(x1, y1);
+        
+        // Get line color
+        rgb = si.color;
+        
+        // Extract 5-bit channels
+        r = (rgb >> 10);
+        g = (rgb >> 5) & 0x1f;
+        b = rgb & 0x1f;
+        
+        // Expand 5-bit channels to 8-bit by shifting left and duplicating
+        // three most significant bits in least significant
+        r = (r << 3) | (r >> 2);
+        g = (g << 3) | (g >> 2);
+        b = (b << 3) | (b >> 2);
+        
+        // Set line color
+        rc.strokeStyle = "rgb(" + r.toString(10) +
+                          ", " + g.toString(10) +
+                          ", " + b.toString(10) + ")";
+        
+        // Set line width
+        rc.lineWidth = si.width;
+        
+        // Stroke the line
+        rc.stroke();
+      }
+    }
   }
   
   /*
